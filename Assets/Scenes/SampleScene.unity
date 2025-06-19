@@ -282,7 +282,7 @@ RectTransform:
   m_GameObject: {fileID: 105800585}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.4, y: 0.4, z: 1}
+  m_LocalScale: {x: 0.3, y: 0.2, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1736024965}
@@ -494,10 +494,10 @@ MonoBehaviour:
   - {fileID: 2079181847}
   penaltyBall: {fileID: 1220085118}
   goalkeeperImage: {fileID: 105800587}
-  playerGKIdleSprite: {fileID: -4414643925076205282, guid: c88694dae853c374584c6157a6ddc5d0, type: 3}
-  playerGKJumpSprite: {fileID: 7388823599233830004, guid: 1c114ad86e7d7644bb9ae64c8a77e6b8, type: 3}
-  aiGKIdleSprite: {fileID: 6530652615544304341, guid: 857f527cb1b5af64db6ac6589af80aed, type: 3}
-  aiGKJumpSprite: {fileID: -382910646490198723, guid: 10f1d0e7bc34b7145bb96c58fd0d2922, type: 3}
+  playerGKIdleSprite: {fileID: -934672847630249352, guid: a70d71d6cf8e7ff43b6bd05117465d9c, type: 3}
+  playerGKJumpSprite: {fileID: -934672847630249352, guid: a70d71d6cf8e7ff43b6bd05117465d9c, type: 3}
+  aiGKIdleSprite: {fileID: -2845747556652654866, guid: 02c11daf571965648860da8e6f409db0, type: 3}
+  aiGKJumpSprite: {fileID: -2845747556652654866, guid: 02c11daf571965648860da8e6f409db0, type: 3}
   goalkeeperIdleAnchor: {fileID: 855036019}
   goldText: {fileID: 1958302146}
   potText: {fileID: 29458162}
