@@ -6,13 +6,20 @@ public class GridManager : MonoBehaviour
 {
     [Header("Grid Settings")]
     [Tooltip("Prefab for each cell; must have a Cell component")]
-    public GameObject cellPrefab;   // assign your Cell prefab here
+    public GameObject cellPrefab;   
+
     [Tooltip("Number of rows (vertical)")]
     public int rows = 10;
     [Tooltip("Number of columns (horizontal)")]
     public int cols = 5;
-    [Tooltip("World-space size of each cell (distance between centers)")]
+
+    [Tooltip("World-space diameter of each cell (center-to-center before spacing)")]
     public float cellSize = 1f;
+
+    [Tooltip("Extra horizontal gap between columns")]
+    public float columnSpacing = 0.1f;
+    [Tooltip("Extra vertical gap between rows")]
+    public float rowSpacing    = 0.1f;
 
     [HideInInspector]
     public GameObject[,] cells;
@@ -22,21 +29,23 @@ public class GridManager : MonoBehaviour
         // Prepare storage
         cells = new GameObject[rows, cols];
 
-        // Calculate total span of the grid
-        float gridWidth  = (cols - 1) * cellSize;
-        float gridHeight = (rows - 1) * cellSize;
+        // Compute step between centers
+        float stepX = cellSize + columnSpacing;
+        float stepY = cellSize + rowSpacing;
 
-        // Offset so that center of grid is at this transform's position
+        // Total spans
+        float gridWidth  = (cols - 1) * stepX;
+        float gridHeight = (rows - 1) * stepY;
+
+        // Offset to center grid on this transform
         Vector2 originOffset = new Vector2(-gridWidth * 0.5f, -gridHeight * 0.5f);
 
-        // Instantiate each cell at a centered position
+        // Instantiate each cell
         for (int r = 0; r < rows; r++)
         {
             for (int c = 0; c < cols; c++)
             {
-                // base position in grid space, then apply center offset
-                Vector2 pos = new Vector2(c * cellSize, r * cellSize) + originOffset;
-                // Instantiate under this GameObject
+                Vector2 pos = new Vector2(c * stepX, r * stepY) + originOffset;
                 var cellGO = Instantiate(cellPrefab, (Vector3)pos, Quaternion.identity, transform);
                 cellGO.name = $"Cell_{r}_{c}";
                 cells[r, c] = cellGO;
