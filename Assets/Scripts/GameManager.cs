@@ -13,8 +13,8 @@ public class GameManager : MonoBehaviour
     public GameObject aiPrefab;           // AI character prefab
 
     [Header("Lose Prefabs (drag here)")]
-    public GameObject playerLosePrefab;   // Prefab to throw when AI tackles
-    public GameObject aiLosePrefab;       // Prefab to throw when Player tackles
+    public GameObject playerLosePrefab;   // Prefab to throw when Player loses
+    public GameObject aiLosePrefab;       // Prefab to throw when AI loses
 
     [Header("Penalty UI (Canvas)")]
     public GameObject penaltyPanel;       // Panel containing penalty UI
@@ -292,6 +292,7 @@ public class GameManager : MonoBehaviour
         if (tackle)
         {
             Vector3 cellPos = gridManager.GetCellPosition(ballRow, ballCol);
+            // now invert correctly: player loses → use playerLosePrefab, AI loses → use aiLosePrefab
             GameObject loser = Instantiate(
                 attacker == Actor.Player ? aiLosePrefab : playerLosePrefab,
                 cellPos,
@@ -347,11 +348,11 @@ public class GameManager : MonoBehaviour
         penaltyBall.gameObject.SetActive(true);
 
         // 1) idle GK
-        goalkeeperImage.sprite = (attacker == Actor.Player)
-            ? aiGKIdleSprite
-            : playerGKIdleSprite;
-        goalkeeperImage.rectTransform.anchoredPosition = goalkeeperIdleAnchor.anchoredPosition;
-        goalkeeperImage.rectTransform.localScale       = goalkeeperBaseScale;
+        goalkeeperImage.sprite = (attacker ==
+                                   Actor.Player) ? aiGKIdleSprite : playerGKIdleSprite;
+        goalkeeperImage.rectTransform.anchoredPosition =
+            goalkeeperIdleAnchor.anchoredPosition;
+        goalkeeperImage.rectTransform.localScale = goalkeeperBaseScale;
         goalkeeperImage.gameObject.SetActive(true);
 
         // 2) preassign other side
@@ -364,7 +365,7 @@ public class GameManager : MonoBehaviour
         while (!penaltyChoiceMade) yield return null;
 
         // 4) compute shoot/defend targets
-        Vector2 shootTarget  = penaltyButtons[penaltyAttackChoice]
+        Vector2 shootTarget = penaltyButtons[penaltyAttackChoice]
             .GetComponent<RectTransform>().anchoredPosition;
         Vector2 defendTarget = penaltyButtons[penaltyDefendChoice]
             .GetComponent<RectTransform>().anchoredPosition;
@@ -374,7 +375,7 @@ public class GameManager : MonoBehaviour
         var flipScale = goalkeeperBaseScale;
         flipScale.x = (defendTarget.x < keeperIdlePos.x)
             ? -Mathf.Abs(flipScale.x)
-            :  Mathf.Abs(flipScale.x);
+            : Mathf.Abs(flipScale.x);
         goalkeeperImage.rectTransform.localScale = flipScale;
         goalkeeperImage.sprite = (attacker == Actor.Player)
             ? aiGKJumpSprite
@@ -385,11 +386,11 @@ public class GameManager : MonoBehaviour
         {
             elapsed2 += Time.deltaTime;
             float tBall = Mathf.Clamp01(elapsed2 / penaltyAnimDuration);
-            float tGK   = Mathf.Clamp01(elapsed2 / goalkeeperJumpDuration);
+            float tGK = Mathf.Clamp01(elapsed2 / goalkeeperJumpDuration);
 
             penaltyBall.anchoredPosition = Vector2.Lerp(
                 penaltyBallStartPos, shootTarget, tBall);
-            penaltyBall.localScale       = Vector3.Lerp(
+            penaltyBall.localScale = Vector3.Lerp(
                 penaltyBallStartScale, penaltyBallEndScale, tBall);
             goalkeeperImage.rectTransform.anchoredPosition =
                 Vector2.Lerp(keeperIdlePos, defendTarget, tGK);
@@ -403,7 +404,7 @@ public class GameManager : MonoBehaviour
         penaltyButtons[penaltyAttackChoice]
             .GetComponent<Image>().color = Color.green;
         penaltyButtons[penaltyDefendChoice]
-            .GetComponent<Image>().color   = Color.red;
+            .GetComponent<Image>().color = Color.red;
 
         bool saved = (penaltyAttackChoice == penaltyDefendChoice);
         if (saved)
