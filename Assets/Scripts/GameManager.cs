@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -7,8 +8,14 @@ using MoreMountains.Feedbacks;
 
 public class GameManager : MonoBehaviour
 {
+    // public so other managers (e.g. PowerUpManager) can reference it
+    public enum Actor { Player, AI }
+
+    private enum Phase { PlayerAttack, AwaitingDefense }
+
     [Header("References (assign in Inspector)")]
     public GridManager gridManager;
+    public PowerUpManager powerUpManager;
     public GameObject ballPrefab;         // Player character prefab
     public GameObject aiPrefab;           // AI character prefab
 
@@ -71,10 +78,12 @@ public class GameManager : MonoBehaviour
     private BallController ballCtrl;
     private int ballRow, ballCol;
 
-    private enum Actor { Player, AI }
-    private Actor possession;
+    /// <summary>
+    /// Exposes the currently active ball (player or AI) for other managers.
+    /// </summary>
+    public GameObject CurrentBallInstance => ballInstance;
 
-    private enum Phase { PlayerAttack, AwaitingDefense }
+    private Actor possession;
     private Phase phase;
 
     private int attackChoice, defendChoice;
@@ -93,6 +102,7 @@ public class GameManager : MonoBehaviour
     {
         // Sanity checks
         if (gridManager == null) Debug.LogError("GridManager not assigned!");
+        if (powerUpManager == null) Debug.LogError("PowerUpManager not assigned!");
         if (ballPrefab == null || aiPrefab == null) Debug.LogError("Character prefabs not assigned!");
         if (playerLosePrefab == null || aiLosePrefab == null) Debug.LogError("Lose prefabs not assigned!");
         if (penaltyPanel == null || penaltyButtons == null || penaltyButtons.Length == 0
@@ -162,6 +172,9 @@ public class GameManager : MonoBehaviour
         ballRow = gridManager.rows / 2;
         ballCol = gridManager.cols / 2;
 
+        // set up fresh power-ups
+        powerUpManager.SetupNewMatch();
+
         penaltyPanel.SetActive(false);
         penaltyBall.gameObject.SetActive(false);
         goalkeeperImage.gameObject.SetActive(false);
@@ -201,6 +214,10 @@ public class GameManager : MonoBehaviour
 
     void StartNewTurn()
     {
+        // always clear any previous blockade effects
+        EnableGrid();
+        ClearHighlights();
+
         if (possession == Actor.Player)
         {
             phase = Phase.PlayerAttack;
@@ -211,6 +228,24 @@ public class GameManager : MonoBehaviour
             phase = Phase.AwaitingDefense;
             attackChoice = AI_Guess();
             HighlightRow(ballRow - 1);
+
+            // apply blockade if defender has it
+            if (powerUpManager.ShouldBlockade(Actor.Player))
+            {
+                // grey out two random columns on row ballRow−1
+                var cols = new List<int>();
+                for (int c = 0; c < gridManager.cols; c++) cols.Add(c);
+                for (int i = 0; i < 2; i++)
+                {
+                    int idx = Random.Range(0, cols.Count);
+                    int blockCol = cols[idx];
+                    cols.RemoveAt(idx);
+                    var cellGO = gridManager.cells[ballRow - 1, blockCol];
+                    cellGO.GetComponent<Collider2D>().enabled = false;
+                    cellGO.GetComponent<SpriteRenderer>().color = Color.gray;
+                }
+                ShowMessage("Blockade! 2 columns disabled", 1f);
+            }
         }
     }
 
@@ -236,9 +271,17 @@ public class GameManager : MonoBehaviour
     private IEnumerator ResolveTurn(int targetRow)
     {
         Actor attacker = possession;
+        Actor defender = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
         bool tackle = (attackChoice == defendChoice);
 
-        // Tackle vs. Advance feedback
+        // Shield power-up
+        if (tackle && powerUpManager.ConsumeShield(defender))
+        {
+            tackle = false;
+            ShowMessage("Shield blocked tackle!", 1f);
+        }
+
+        // Feedback
         if (tackle)
         {
             if (attacker == Actor.Player)
@@ -254,6 +297,7 @@ public class GameManager : MonoBehaviour
         }
         else
         {
+            int extra = powerUpManager.GetAdvanceBonus(attacker);
             if (attacker == Actor.Player)
             {
                 ShowMessage("Dribble!", 1f);
@@ -264,21 +308,27 @@ public class GameManager : MonoBehaviour
                 ShowMessage("Dribbled!", 1f);
                 feedbackOpponentAdvance?.PlayFeedbacks();
             }
-            pot += bonusPerAdvance;
+            pot += bonusPerAdvance + extra;
             UpdatePotUI();
         }
 
         yield return new WaitForSeconds(tackleAnimDuration);
-        ClearHighlights();
 
-        // Move the ball
+        // Collect any power-up on landing
         ballRow = targetRow;
         ballCol = attackChoice;
+        var pu = powerUpManager.CollectIfAny(ballRow, ballCol, attacker);
+        if (pu != PowerUpType.None)
+            ShowMessage($"Picked up {pu}!", 1f);
+
+        ClearHighlights();
+
+        // Move the ball visually
         yield return StartCoroutine(
             ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol))
         );
 
-        // Check for goal line
+        // Goal check
         bool goal = !tackle &&
             ((attacker == Actor.Player && ballRow == gridManager.rows - 1) ||
              (attacker == Actor.AI     && ballRow == 0));
@@ -292,7 +342,6 @@ public class GameManager : MonoBehaviour
         if (tackle)
         {
             Vector3 cellPos = gridManager.GetCellPosition(ballRow, ballCol);
-            // now invert correctly: player loses → use playerLosePrefab, AI loses → use aiLosePrefab
             GameObject loser = Instantiate(
                 attacker == Actor.Player ? aiLosePrefab : playerLosePrefab,
                 cellPos,
@@ -300,21 +349,13 @@ public class GameManager : MonoBehaviour
             );
             StartCoroutine(ThrowOffScreen(loser, attacker));
 
-            possession = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
+            possession = defender;
             SpawnCharacter();
-            StartNewTurn();
         }
-        else
-        {
-            StartNewTurn();
-        }
+
+        StartNewTurn();
     }
 
-    /// <summary>
-    /// Throws the loser off-screen:
-    /// - Player attacker: opponent is thrown downward.
-    /// - AI attacker: player is thrown upward.
-    /// </summary>
     private IEnumerator ThrowOffScreen(GameObject loser, Actor attacker)
     {
         float elapsed = 0f;
@@ -348,11 +389,9 @@ public class GameManager : MonoBehaviour
         penaltyBall.gameObject.SetActive(true);
 
         // 1) idle GK
-        goalkeeperImage.sprite = (attacker ==
-                                   Actor.Player) ? aiGKIdleSprite : playerGKIdleSprite;
-        goalkeeperImage.rectTransform.anchoredPosition =
-            goalkeeperIdleAnchor.anchoredPosition;
-        goalkeeperImage.rectTransform.localScale = goalkeeperBaseScale;
+        goalkeeperImage.sprite = (attacker == Actor.Player) ? aiGKIdleSprite : playerGKIdleSprite;
+        goalkeeperImage.rectTransform.anchoredPosition = goalkeeperIdleAnchor.anchoredPosition;
+        goalkeeperImage.rectTransform.localScale       = goalkeeperBaseScale;
         goalkeeperImage.gameObject.SetActive(true);
 
         // 2) preassign other side
@@ -365,35 +404,28 @@ public class GameManager : MonoBehaviour
         while (!penaltyChoiceMade) yield return null;
 
         // 4) compute shoot/defend targets
-        Vector2 shootTarget = penaltyButtons[penaltyAttackChoice]
-            .GetComponent<RectTransform>().anchoredPosition;
-        Vector2 defendTarget = penaltyButtons[penaltyDefendChoice]
-            .GetComponent<RectTransform>().anchoredPosition;
+        Vector2 shootTarget  = penaltyButtons[penaltyAttackChoice].GetComponent<RectTransform>().anchoredPosition;
+        Vector2 defendTarget = penaltyButtons[penaltyDefendChoice].GetComponent<RectTransform>().anchoredPosition;
 
         // 5) GK jump & ball fly
         Vector2 keeperIdlePos = goalkeeperIdleAnchor.anchoredPosition;
         var flipScale = goalkeeperBaseScale;
         flipScale.x = (defendTarget.x < keeperIdlePos.x)
             ? -Mathf.Abs(flipScale.x)
-            : Mathf.Abs(flipScale.x);
+            :  Mathf.Abs(flipScale.x);
         goalkeeperImage.rectTransform.localScale = flipScale;
-        goalkeeperImage.sprite = (attacker == Actor.Player)
-            ? aiGKJumpSprite
-            : playerGKJumpSprite;
+        goalkeeperImage.sprite = (attacker == Actor.Player) ? aiGKJumpSprite : playerGKJumpSprite;
 
         float elapsed2 = 0f;
         while (elapsed2 < penaltyAnimDuration)
         {
             elapsed2 += Time.deltaTime;
             float tBall = Mathf.Clamp01(elapsed2 / penaltyAnimDuration);
-            float tGK = Mathf.Clamp01(elapsed2 / goalkeeperJumpDuration);
+            float tGK   = Mathf.Clamp01(elapsed2 / goalkeeperJumpDuration);
 
-            penaltyBall.anchoredPosition = Vector2.Lerp(
-                penaltyBallStartPos, shootTarget, tBall);
-            penaltyBall.localScale = Vector3.Lerp(
-                penaltyBallStartScale, penaltyBallEndScale, tBall);
-            goalkeeperImage.rectTransform.anchoredPosition =
-                Vector2.Lerp(keeperIdlePos, defendTarget, tGK);
+            penaltyBall.anchoredPosition = Vector2.Lerp(penaltyBallStartPos, shootTarget, tBall);
+            penaltyBall.localScale       = Vector3.Lerp(penaltyBallStartScale, penaltyBallEndScale, tBall);
+            goalkeeperImage.rectTransform.anchoredPosition = Vector2.Lerp(keeperIdlePos, defendTarget, tGK);
 
             yield return null;
         }
@@ -401,10 +433,8 @@ public class GameManager : MonoBehaviour
         yield return new WaitForSeconds(afterAnimDelay);
 
         // highlight choices
-        penaltyButtons[penaltyAttackChoice]
-            .GetComponent<Image>().color = Color.green;
-        penaltyButtons[penaltyDefendChoice]
-            .GetComponent<Image>().color = Color.red;
+        penaltyButtons[penaltyAttackChoice].GetComponent<Image>().color = Color.green;
+        penaltyButtons[penaltyDefendChoice].GetComponent<Image>().color   = Color.red;
 
         bool saved = (penaltyAttackChoice == penaltyDefendChoice);
         if (saved)
