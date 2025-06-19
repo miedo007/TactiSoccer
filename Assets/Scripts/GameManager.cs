@@ -11,8 +11,10 @@ public class GameManager : MonoBehaviour
     public GridManager gridManager;
     public GameObject ballPrefab;         // Player character prefab
     public GameObject aiPrefab;           // AI character prefab
-    public GameObject playerTacklePrefab; // Player tackle visual prefab
-    public GameObject aiTacklePrefab;     // AI tackle visual prefab
+
+    [Header("Lose Prefabs (drag here)")]
+    public GameObject playerLosePrefab;   // Prefab to throw when AI tackles
+    public GameObject aiLosePrefab;       // Prefab to throw when Player tackles
 
     [Header("Penalty UI (Canvas)")]
     public GameObject penaltyPanel;       // Panel containing penalty UI
@@ -52,16 +54,16 @@ public class GameManager : MonoBehaviour
     public Vector3 penaltyBallEndScale   = Vector3.one * 0.5f;
 
     [Header("Feel Feedbacks")]
-    public MMFeedbacks feedbackPlayerAdvance;    // Feel asset when player advances
-    public MMFeedbacks feedbackOpponentAdvance;  // Feel asset when opponent advances
-    public MMFeedbacks feedbackTackleWin;        // Feel asset when player succeeds a tackle
-    public MMFeedbacks feedbackTackleLose;       // Feel asset when player is tackled
-    public MMFeedbacks feedbackPenaltySaved;     // Feel asset when player blocks a penalty
-    public MMFeedbacks feedbackPenaltyCounter;   // Feel asset when opponent blocks a penalty
-    public MMFeedbacks feedbackGoalForPlayer;    // Feel asset when player scores
-    public MMFeedbacks feedbackGoalAgainst;      // Feel asset when opponent scores
-    public MMFeedbacks feedbackMatchWin;         // Feel asset on match win
-    public MMFeedbacks feedbackMatchLose;        // Feel asset on match lose
+    public MMFeedbacks feedbackPlayerAdvance;    // when player advances
+    public MMFeedbacks feedbackOpponentAdvance;  // when AI advances
+    public MMFeedbacks feedbackTackleWin;        // on successful player tackle
+    public MMFeedbacks feedbackTackleLose;       // on failed player tackle
+    public MMFeedbacks feedbackPenaltySaved;     // on penalty save
+    public MMFeedbacks feedbackPenaltyCounter;   // on penalty counter
+    public MMFeedbacks feedbackGoalForPlayer;    // on player goal
+    public MMFeedbacks feedbackGoalAgainst;      // on AI goal
+    public MMFeedbacks feedbackMatchWin;         // on match win
+    public MMFeedbacks feedbackMatchLose;        // on match lose
 
     // private state
     private int playerGold, currentBet, pot;
@@ -92,7 +94,7 @@ public class GameManager : MonoBehaviour
         // Sanity checks
         if (gridManager == null) Debug.LogError("GridManager not assigned!");
         if (ballPrefab == null || aiPrefab == null) Debug.LogError("Character prefabs not assigned!");
-        if (playerTacklePrefab == null || aiTacklePrefab == null) Debug.LogError("Tackle prefabs not assigned!");
+        if (playerLosePrefab == null || aiLosePrefab == null) Debug.LogError("Lose prefabs not assigned!");
         if (penaltyPanel == null || penaltyButtons == null || penaltyButtons.Length == 0
             || penaltyBall == null || goalkeeperImage == null || goalkeeperIdleAnchor == null)
             Debug.LogError("Penalty UI not assigned!");
@@ -153,23 +155,16 @@ public class GameManager : MonoBehaviour
         ballCtrl = ballInstance.GetComponent<BallController>();
     }
 
-    /// <summary>
-    /// Called when the player clicks any bet button.
-    /// Resets match state if coming from a finished match.
-    /// </summary>
     void OnBetSelected(int amount)
     {
         // **RESET FOR A NEW MATCH**
-        // randomize new possession
         possession = (Random.value < 0.5f) ? Actor.Player : Actor.AI;
-        // recenter the ball
         ballRow = gridManager.rows / 2;
         ballCol = gridManager.cols / 2;
-        // hide any lingering penalty UI
+
         penaltyPanel.SetActive(false);
         penaltyBall.gameObject.SetActive(false);
         goalkeeperImage.gameObject.SetActive(false);
-        // reset penalty buttons
         foreach (var btn in penaltyButtons)
         {
             btn.interactable = true;
@@ -177,7 +172,6 @@ public class GameManager : MonoBehaviour
         }
         ClearHighlights();
 
-        // now process the ante as usual
         if (amount > playerGold)
         {
             ShowMessage("Not enough gold!", 1f);
@@ -187,23 +181,19 @@ public class GameManager : MonoBehaviour
         playerGold -= amount;
         UpdateGoldUI();
 
-        // Both ante
         pot = currentBet * 2;
         UpdatePotUI();
 
-        // Announce possession
         ShowMessage(
             possession == Actor.Player ? "You Kick-Off" : "Opponent Kick-Off",
             1.5f
         );
 
-        // Hide bet UI
         betPanel.SetActive(false);
         bet5Button.gameObject.SetActive(false);
         bet10Button.gameObject.SetActive(false);
         bet20Button.gameObject.SetActive(false);
 
-        // Spawn and begin
         SpawnCharacter();
         EnableGrid();
         StartNewTurn();
@@ -245,12 +235,10 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator ResolveTurn(int targetRow)
     {
-        var atkCell = gridManager.cells[targetRow, attackChoice].GetComponent<Cell>();
-        var defCell = gridManager.cells[targetRow, defendChoice].GetComponent<Cell>();
         Actor attacker = possession;
         bool tackle = (attackChoice == defendChoice);
 
-        // Tackle case
+        // Tackle vs. Advance feedback
         if (tackle)
         {
             if (attacker == Actor.Player)
@@ -264,7 +252,6 @@ public class GameManager : MonoBehaviour
                 feedbackTackleWin?.PlayFeedbacks();
             }
         }
-        // Advance case
         else
         {
             if (attacker == Actor.Player)
@@ -301,19 +288,16 @@ public class GameManager : MonoBehaviour
             yield break;
         }
 
-        // On actual tackle flip possession
+        // Tackle resolution: throw loser
         if (tackle)
         {
-            var tacklePrefab = (attacker == Actor.Player)
-                ? aiTacklePrefab
-                : playerTacklePrefab;
-            var tackleGO = Instantiate(
-                tacklePrefab,
-                gridManager.GetCellPosition(ballRow, ballCol),
+            Vector3 cellPos = gridManager.GetCellPosition(ballRow, ballCol);
+            GameObject loser = Instantiate(
+                attacker == Actor.Player ? aiLosePrefab : playerLosePrefab,
+                cellPos,
                 Quaternion.identity
             );
-            yield return new WaitForSeconds(tackleAnimDuration);
-            Destroy(tackleGO);
+            StartCoroutine(ThrowOffScreen(loser, attacker));
 
             possession = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
             SpawnCharacter();
@@ -323,6 +307,28 @@ public class GameManager : MonoBehaviour
         {
             StartNewTurn();
         }
+    }
+
+    /// <summary>
+    /// Throws the loser off-screen:
+    /// - Player attacker: opponent is thrown downward.
+    /// - AI attacker: player is thrown upward.
+    /// </summary>
+    private IEnumerator ThrowOffScreen(GameObject loser, Actor attacker)
+    {
+        float elapsed = 0f;
+        float duration = tackleAnimDuration;
+        Vector3 start = loser.transform.position;
+        Vector3 direction = (attacker == Actor.Player) ? Vector3.down : Vector3.up;
+        Vector3 end = start + direction * (gridManager.rows + 1);
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            loser.transform.position = Vector3.Lerp(start, end, elapsed / duration);
+            yield return null;
+        }
+        Destroy(loser);
     }
 
     private IEnumerator PenaltySequence(Actor attacker)
@@ -374,12 +380,12 @@ public class GameManager : MonoBehaviour
             ? aiGKJumpSprite
             : playerGKJumpSprite;
 
-        float elapsed = 0f;
-        while (elapsed < penaltyAnimDuration)
+        float elapsed2 = 0f;
+        while (elapsed2 < penaltyAnimDuration)
         {
-            elapsed += Time.deltaTime;
-            float tBall = Mathf.Clamp01(elapsed / penaltyAnimDuration);
-            float tGK   = Mathf.Clamp01(elapsed / goalkeeperJumpDuration);
+            elapsed2 += Time.deltaTime;
+            float tBall = Mathf.Clamp01(elapsed2 / penaltyAnimDuration);
+            float tGK   = Mathf.Clamp01(elapsed2 / goalkeeperJumpDuration);
 
             penaltyBall.anchoredPosition = Vector2.Lerp(
                 penaltyBallStartPos, shootTarget, tBall);
@@ -402,23 +408,19 @@ public class GameManager : MonoBehaviour
         bool saved = (penaltyAttackChoice == penaltyDefendChoice);
         if (saved)
         {
-            // penalty blocked
             if (attacker == Actor.Player)
             {
-                // opponent blocked
                 ShowMessage("Countered", 1f);
                 feedbackPenaltyCounter?.PlayFeedbacks();
                 possession = Actor.AI;
             }
             else
             {
-                // player blocked
                 ShowMessage("Saved", 1f);
                 feedbackPenaltySaved?.PlayFeedbacks();
                 possession = Actor.Player;
             }
 
-            // reset UI
             foreach (var btn in penaltyButtons)
             {
                 btn.interactable = true;
@@ -435,7 +437,6 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            // goal scored
             if (attacker == Actor.Player)
             {
                 playerGold += pot;
@@ -456,6 +457,8 @@ public class GameManager : MonoBehaviour
             goalkeeperImage.gameObject.SetActive(false);
             EndMatch();
         }
+
+        yield break;
     }
 
     public void OnPenaltyButton(int idx)
@@ -485,7 +488,6 @@ public class GameManager : MonoBehaviour
     private void UpdatePotUI() => potText.text = $"Pot: {pot}g";
     private void UpdateGoldUI() => goldText.text = $"Gold: {playerGold}g";
 
-    // **MODIFIED**: EndMatch now returns straight to the bet screen
     private void EndMatch()
     {
         DisableGrid();
@@ -532,7 +534,6 @@ public class GameManager : MonoBehaviour
             cellGO.GetComponent<Collider2D>().enabled = true;
     }
 
-    // Helper to show a message for a limited duration
     private void ShowMessage(string msg, float duration)
     {
         if (_clearMsgCoroutine != null)
