@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -65,6 +66,10 @@ public class GameManager : MonoBehaviour
     public MMFeedbacks feedbackMatchWin;         // on match win
     public MMFeedbacks feedbackMatchLose;        // on match lose
 
+    [Header("Power-Up (assign in Inspector)")]
+    public PowerUpManager powerUpManager;
+    public PowerUpSpawner  powerUpSpawner;
+
     // private state
     private int playerGold, currentBet, pot;
     private GameObject ballInstance;
@@ -102,6 +107,8 @@ public class GameManager : MonoBehaviour
             || betPanel == null || bet5Button == null || bet10Button == null
             || bet20Button == null || restartButton == null)
             Debug.LogError("UI references not fully assigned!");
+        if (powerUpManager == null) Debug.LogError("PowerUpManager not assigned!");
+        if (powerUpSpawner  == null) Debug.LogError("PowerUpSpawner not assigned!");
 
         // Store keeper base scale
         goalkeeperBaseScale = goalkeeperImage.rectTransform.localScale;
@@ -196,6 +203,10 @@ public class GameManager : MonoBehaviour
 
         SpawnCharacter();
         EnableGrid();
+
+        // spawn pickups for this match
+        powerUpSpawner.SpawnDrops();
+
         StartNewTurn();
     }
 
@@ -204,13 +215,13 @@ public class GameManager : MonoBehaviour
         if (possession == Actor.Player)
         {
             phase = Phase.PlayerAttack;
-            HighlightRow(ballRow + 1);
+            HighlightRow(ballRow + 1, Actor.Player);
         }
         else
         {
             phase = Phase.AwaitingDefense;
             attackChoice = AI_Guess();
-            HighlightRow(ballRow - 1);
+            HighlightRow(ballRow - 1, Actor.AI);
         }
     }
 
@@ -278,6 +289,9 @@ public class GameManager : MonoBehaviour
             ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol))
         );
 
+        // *** NEW: manual pickup check ***
+        CheckForPickups();
+
         // Check for goal line
         bool goal = !tackle &&
             ((attacker == Actor.Player && ballRow == gridManager.rows - 1) ||
@@ -292,7 +306,6 @@ public class GameManager : MonoBehaviour
         if (tackle)
         {
             Vector3 cellPos = gridManager.GetCellPosition(ballRow, ballCol);
-            // now invert correctly: player loses → use playerLosePrefab, AI loses → use aiLosePrefab
             GameObject loser = Instantiate(
                 attacker == Actor.Player ? aiLosePrefab : playerLosePrefab,
                 cellPos,
@@ -311,10 +324,23 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Throws the loser off-screen:
-    /// - Player attacker: opponent is thrown downward.
-    /// - AI attacker: player is thrown upward.
+    /// Manually detect any pickup at ball position and invoke it.
     /// </summary>
+    private void CheckForPickups()
+    {
+        Vector2 pos2d = ballInstance.transform.position;
+        float radius = 0.1f;
+        var hits = Physics2D.OverlapCircleAll(pos2d, radius);
+        foreach (var hit in hits)
+        {
+            var pu = hit.GetComponent<PowerUpPickup>();
+            if (pu != null)
+            {
+                pu.ManualPickup(ballInstance);
+            }
+        }
+    }
+
     private IEnumerator ThrowOffScreen(GameObject loser, Actor attacker)
     {
         float elapsed = 0f;
@@ -471,12 +497,21 @@ public class GameManager : MonoBehaviour
         penaltyChoiceMade = true;
     }
 
-    private void HighlightRow(int tr)
+    // Updated to respect Focus power-up
+    private void HighlightRow(int tr, Actor attacker)
     {
         ClearHighlights();
         if (tr < 0 || tr >= gridManager.rows) return;
-        foreach (var cellGO in gridManager.Row(tr))
-            cellGO.GetComponent<Cell>().Highlight(true);
+
+        List<int> allowed = powerUpManager.GetAllowedColumns(attacker.ToString());
+        foreach (int c in allowed)
+            gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
+    }
+
+    // Legacy overload
+    private void HighlightRow(int tr)
+    {
+        HighlightRow(tr, possession);
     }
 
     private void ClearHighlights()

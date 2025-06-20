@@ -6,7 +6,7 @@ public class GridManager : MonoBehaviour
 {
     [Header("Grid Settings")]
     [Tooltip("Prefab for each cell; must have a Cell component")]
-    public GameObject cellPrefab;   
+    public GameObject cellPrefab;
 
     [Tooltip("Number of rows (vertical)")]
     public int rows = 10;
@@ -15,7 +15,6 @@ public class GridManager : MonoBehaviour
 
     [Tooltip("World-space diameter of each cell (center-to-center before spacing)")]
     public float cellSize = 1f;
-
     [Tooltip("Extra horizontal gap between columns")]
     public float columnSpacing = 0.1f;
     [Tooltip("Extra vertical gap between rows")]
@@ -88,5 +87,24 @@ public class GridManager : MonoBehaviour
                     all[i++] = cells[r, c].GetComponent<Cell>();
             return all;
         }
+    }
+
+    /// <summary>
+    /// Finds the (row, col) of the cell whose center is close to worldPos.
+    /// Returns (-1, -1) if none found.
+    /// </summary>
+    public Vector2Int GetCellIndicesFromPosition(Vector3 worldPos)
+    {
+        for (int r = 0; r < rows; r++)
+        {
+            for (int c = 0; c < cols; c++)
+            {
+                if (Vector3.Distance(cells[r, c].transform.position, worldPos) < 0.01f)
+                {
+                    return new Vector2Int(r, c);
+                }
+            }
+        }
+        return new Vector2Int(-1, -1);
     }
 }
