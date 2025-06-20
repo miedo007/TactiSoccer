@@ -97,6 +97,15 @@ public class GameManager : MonoBehaviour
     // NEW: list of columns allowed for clicks this turn
     private List<int> _allowedColumns = new List<int>();
 
+    // NEW: clear any remaining pickups before starting a new match
+    private void ClearFieldPowerUps()
+    {
+        foreach (var pu in FindObjectsOfType<PowerUpPickup>())
+        {
+            Destroy(pu.gameObject);
+        }
+    }
+
     void Start()
     {
         // Sanity checks
@@ -167,6 +176,9 @@ public class GameManager : MonoBehaviour
 
     void OnBetSelected(int amount)
     {
+        // NEW: clear any leftover pickups from the previous match
+        ClearFieldPowerUps();
+
         // **RESET FOR A NEW MATCH**
         possession = (Random.value < 0.5f) ? Actor.Player : Actor.AI;
         ballRow = gridManager.rows / 2;
@@ -293,8 +305,8 @@ public class GameManager : MonoBehaviour
         ballRow = targetRow;
         ballCol = attackChoice;
         yield return StartCoroutine(
-            ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol))
-        );
+            ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol)))
+        ;
 
         // *** NEW: manual pickup check ***
         CheckForPickups();
@@ -316,8 +328,7 @@ public class GameManager : MonoBehaviour
             GameObject loser = Instantiate(
                 attacker == Actor.Player ? aiLosePrefab : playerLosePrefab,
                 cellPos,
-                Quaternion.identity
-            );
+                Quaternion.identity);
             StartCoroutine(ThrowOffScreen(loser, attacker));
 
             possession = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
