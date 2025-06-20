@@ -93,6 +93,9 @@ public class GameManager : MonoBehaviour
     private Vector2 penaltyBallStartPos;
     private Vector3 goalkeeperBaseScale;
 
+    // Tracks which cells were disabled by a blockade, so we can restore them
+    private List<GameObject> _blockedCells = new List<GameObject>();
+
     // Message clear coroutine handle
     private Coroutine _clearMsgCoroutine;
 
@@ -209,7 +212,10 @@ public class GameManager : MonoBehaviour
 
     void StartNewTurn()
     {
-        // always clear any previous blockade effects
+        // restore any previously blocked cells
+        RestoreBlockedCells();
+
+        // always clear highlights
         EnableGrid();
         ClearHighlights();
 
@@ -235,9 +241,11 @@ public class GameManager : MonoBehaviour
                     int blockCol = cols[idx];
                     cols.RemoveAt(idx);
                     var cellGO = gridManager.cells[ballRow - 1, blockCol];
-                    cellGO.GetComponent<Collider2D>().enabled = false;
+                    // disable the entire cell GameObject
+                    cellGO.SetActive(false);
+                    _blockedCells.Add(cellGO);
                 }
-                ShowMessage("Blockade! 2 columns disabled", 1f);
+                ShowMessage("Blockade! 2 cells removed", 1f);
             }
         }
     }
@@ -570,6 +578,17 @@ public class GameManager : MonoBehaviour
     {
         foreach (var cellGO in gridManager.AllCells)
             cellGO.GetComponent<Collider2D>().enabled = true;
+    }
+
+    // Restores any cells disabled by a blockade
+    private void RestoreBlockedCells()
+    {
+        if (_blockedCells.Count == 0) return;
+        foreach (var go in _blockedCells)
+        {
+            if (go != null) go.SetActive(true);
+        }
+        _blockedCells.Clear();
     }
 
     // Helper to show a message for a limited duration

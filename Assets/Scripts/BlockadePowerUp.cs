@@ -1,30 +1,53 @@
-// BlockadePowerUp.cs
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Responsible for applying and clearing blockade effects on the grid.
+/// </summary>
 public class BlockadePowerUp : MonoBehaviour
 {
-    public GridManager gridManager;
-    public PowerUpManager powerUpManager;
+    private GridManager _grid;
+    private List<GameObject> _disabledCells = new List<GameObject>();
 
-    // This could move the logic out of GameManager if you like:
-    public void ApplyBlockade(GameManager.Actor defender, int ballRow)
+    public void Initialize(GridManager grid)
     {
-        if (!powerUpManager.ShouldBlockade(defender)) return;
+        _grid = grid;
+    }
+
+    /// <summary>
+    /// Disables 'count' random columns on row 'rowIndex'.
+    /// </summary>
+    public void Apply(int rowIndex, int count = 2)
+    {
+        if (_grid == null) return;
+
+        // First clear any old blockade
+        Clear();
 
         var cols = new List<int>();
-        for (int c = 0; c < gridManager.cols; c++)
-            cols.Add(c);
-        // pick two to disable
-        for (int i = 0; i < 2; i++)
+        for (int c = 0; c < _grid.cols; c++) cols.Add(c);
+
+        for (int i = 0; i < count && cols.Count > 0; i++)
         {
             int idx = Random.Range(0, cols.Count);
-            int blockCol = cols[idx];
+            int col = cols[idx];
             cols.RemoveAt(idx);
-            var cellGO = gridManager.cells[ballRow, blockCol];
-            cellGO.GetComponent<Collider2D>().enabled = false;
+
+            var cellGO = _grid.cells[rowIndex, col];
+            cellGO.SetActive(false);
+            _disabledCells.Add(cellGO);
         }
-        // you can bubble up a message or trigger UI here
-        Debug.Log("Blockade applied: 2 columns disabled");
+    }
+
+    /// <summary>
+    /// Re-enables any cells previously disabled by this blockade.
+    /// </summary>
+    public void Clear()
+    {
+        foreach (var cellGO in _disabledCells)
+            if (cellGO != null)
+                cellGO.SetActive(true);
+
+        _disabledCells.Clear();
     }
 }
