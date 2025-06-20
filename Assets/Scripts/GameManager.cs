@@ -94,6 +94,9 @@ public class GameManager : MonoBehaviour
     // Message clear coroutine handle
     private Coroutine _clearMsgCoroutine;
 
+    // NEW: list of columns allowed for clicks this turn
+    private List<int> _allowedColumns = new List<int>();
+
     void Start()
     {
         // Sanity checks
@@ -230,6 +233,10 @@ public class GameManager : MonoBehaviour
         if (betPanel.activeSelf) return;
         int targetRow = (possession == Actor.Player) ? ballRow + 1 : ballRow - 1;
         if (r != targetRow) return;
+
+        // NEW: ignore clicks on columns not in the allowed list
+        if (_allowedColumns.Count > 0 && !_allowedColumns.Contains(c))
+            return;
 
         if (possession == Actor.Player && phase == Phase.PlayerAttack)
         {
@@ -497,22 +504,25 @@ public class GameManager : MonoBehaviour
         penaltyChoiceMade = true;
     }
 
-    // Updated to respect Focus power-up
+    // --------------------------------------------------------------------------------
+    // Updated to respect Focus power-up and store allowed columns:
     private void HighlightRow(int tr, Actor attacker)
     {
         ClearHighlights();
+        _allowedColumns.Clear();
+
         if (tr < 0 || tr >= gridManager.rows) return;
 
-        List<int> allowed = powerUpManager.GetAllowedColumns(attacker.ToString());
-        foreach (int c in allowed)
+        _allowedColumns = powerUpManager.GetAllowedColumns(attacker.ToString());
+        foreach (int c in _allowedColumns)
             gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
     }
 
-    // Legacy overload
     private void HighlightRow(int tr)
     {
         HighlightRow(tr, possession);
     }
+    // --------------------------------------------------------------------------------
 
     private void ClearHighlights()
     {
