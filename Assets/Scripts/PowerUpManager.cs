@@ -15,12 +15,6 @@ public class PowerUpManager : MonoBehaviour
     public GameObject goldPrefab;
     public GameObject blockadePrefab;
 
-    [Header("Equipped Icon Settings")]
-    [Tooltip("Local position offset of the equipped icon relative to the ball")]
-    public Vector3 equippedIconOffset = new Vector3(-0.3f, 0.3f, 0f);
-    [Tooltip("Uniform scale of the equipped icon")]
-    public float   equippedIconScale  = 0.5f;
-
     // Internal tracking of grid power-ups
     private Dictionary<Vector2Int, PowerUpType> _positions = new Dictionary<Vector2Int, PowerUpType>();
     private Dictionary<Vector2Int, GameObject>   _icons     = new Dictionary<Vector2Int, GameObject>();
@@ -49,19 +43,18 @@ public class PowerUpManager : MonoBehaviour
     /// </summary>
     public void SetupNewMatch()
     {
-        // Safely destroy old icons
-        var iconsToDestroy = new List<GameObject>(_icons.Values);
-        foreach (var icon in iconsToDestroy) Destroy(icon);
+        // Destroy old icons
+        foreach (var icon in _icons.Values) Destroy(icon);
         _icons.Clear();
         _positions.Clear();
 
-        // Collect candidate cells (avoid the goal rows)
+        // Candidate cells (avoid goal rows)
         var candidates = new List<Vector2Int>();
         for (int r = 1; r < gridManager.rows - 1; r++)
             for (int c = 0; c < gridManager.cols; c++)
                 candidates.Add(new Vector2Int(r, c));
 
-        // Place three power-ups
+        // Place three
         for (int i = 0; i < 3; i++)
         {
             int idx = UnityEngine.Random.Range(0, candidates.Count);
@@ -71,7 +64,7 @@ public class PowerUpManager : MonoBehaviour
             var type = (PowerUpType)UnityEngine.Random.Range(1, 4);
             _positions[pos] = type;
 
-            // Spawn icon at cell
+            // Spawn icon
             Vector3 world = gridManager.GetCellPosition(pos.x, pos.y);
             GameObject prefab = type == PowerUpType.Shield   ? shieldPrefab
                               : type == PowerUpType.GoldCache ? goldPrefab
@@ -88,7 +81,6 @@ public class PowerUpManager : MonoBehaviour
             _blockadeActive[actor] = false;
         }
 
-        // Clear any displayed icon
         ClearEquippedIcon();
     }
 
@@ -111,30 +103,26 @@ public class PowerUpManager : MonoBehaviour
         switch (type)
         {
             case PowerUpType.Shield:   _shieldActive[actor]   = true; break;
-            case PowerUpType.GoldCache: _goldActive[actor]     = true; break;
-            case PowerUpType.Blockade:  _blockadeActive[actor] = true; break;
+            case PowerUpType.GoldCache:_goldActive[actor]     = true; break;
+            case PowerUpType.Blockade:_blockadeActive[actor] = true; break;
         }
 
-        // Show the equipped icon on the current ball instance
-        if (type != PowerUpType.None && 
-            gameManager != null && 
-            gameManager.CurrentBallInstance != null)
-        {
+        // Show equipped icon on the ball
+        if (gameManager != null && gameManager.CurrentBallInstance != null)
             UpdateEquippedIcon(actor, gameManager.CurrentBallInstance.transform);
-        }
 
         return type;
     }
 
     /// <summary>
-    /// Display the equipped power-up icon at a corner of the player's prefab.
+    /// Display the equipped power-up icon at a corner of the character prefab.
     /// </summary>
     public void UpdateEquippedIcon(GameManager.Actor actor, Transform parent)
     {
         ClearEquippedIcon();
 
         PowerUpType active = PowerUpType.None;
-        if (_shieldActive[actor])   active = PowerUpType.Shield;
+        if (_shieldActive[actor]) active = PowerUpType.Shield;
         else if (_goldActive[actor]) active = PowerUpType.GoldCache;
         else if (_blockadeActive[actor]) active = PowerUpType.Blockade;
 
@@ -146,20 +134,16 @@ public class PowerUpManager : MonoBehaviour
         if (prefab == null) return;
 
         _equippedIcon = Instantiate(prefab, parent);
-        // use inspector-tweakable offset + scale
-        _equippedIcon.transform.localPosition = equippedIconOffset;
-        _equippedIcon.transform.localScale    = Vector3.one * equippedIconScale;
+        _equippedIcon.transform.localPosition = new Vector3(-0.3f, 0.3f, 0f);
+        _equippedIcon.transform.localScale = Vector3.one * 0.5f;
     }
 
-    /// <summary>Remove any displayed equipped icon.</summary>
     public void ClearEquippedIcon()
     {
-        if (_equippedIcon != null)
-            Destroy(_equippedIcon);
+        if (_equippedIcon != null) Destroy(_equippedIcon);
         _equippedIcon = null;
     }
 
-    /// <summary>Returns true if defender had a shield; consumes it.</summary>
     public bool ConsumeShield(GameManager.Actor defender)
     {
         if (!_shieldActive[defender]) return false;
@@ -168,7 +152,6 @@ public class PowerUpManager : MonoBehaviour
         return true;
     }
 
-    /// <summary>Returns +2 advance bonus if GoldCache active; consumes it.</summary>
     public int GetAdvanceBonus(GameManager.Actor attacker)
     {
         if (!_goldActive[attacker]) return 0;
@@ -177,12 +160,19 @@ public class PowerUpManager : MonoBehaviour
         return 2;
     }
 
-    /// <summary>Returns true if Blockade should apply; consumes it.</summary>
     public bool ShouldBlockade(GameManager.Actor defender)
     {
         if (!_blockadeActive[defender]) return false;
         _blockadeActive[defender] = false;
         ClearEquippedIcon();
         return true;
+    }
+
+    /// <summary>
+    /// Expose shield status so GameManager can highlight.
+    /// </summary>
+    public bool IsShieldActive(GameManager.Actor actor)
+    {
+        return _shieldActive.ContainsKey(actor) && _shieldActive[actor];
     }
 }
