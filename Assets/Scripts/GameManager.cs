@@ -78,6 +78,10 @@ public class GameManager : MonoBehaviour
     public TextMeshProUGUI rulesText;
     public Button rulesButton;
 
+    [Header("Movement Settings")]
+    [Tooltip("When true, only adjacent+diagonal moves are allowed; when false, all columns are valid.")]
+    public bool restrictToAdjacent = true;
+
     // private state
     private int playerGold, currentBet, pot;
     private GameObject ballInstance;
@@ -107,7 +111,9 @@ public class GameManager : MonoBehaviour
     // clear pickups before starting a new match
     private void ClearFieldPowerUps()
     {
-        foreach (var pu in FindObjectsOfType<PowerUpPickup>())
+        // Updated to non-obsolete API:
+        var pickups = Object.FindObjectsByType<PowerUpPickup>(FindObjectsSortMode.None);
+        foreach (var pu in pickups)
             Destroy(pu.gameObject);
     }
 
@@ -249,7 +255,9 @@ public class GameManager : MonoBehaviour
             ShowMessage("🔄 Mirror Clash! Ball reversed!", 1f);
             yield return new WaitForSeconds(afterAnimDelay);
             ClearHighlights();
-            yield return StartCoroutine(ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol)));
+            yield return StartCoroutine(ballCtrl.MoveToCell(
+                gridManager.GetCellPosition(ballRow, ballCol)
+            ));
             StartNewTurn();
             yield break;
         }
@@ -289,13 +297,14 @@ public class GameManager : MonoBehaviour
         ballRow = targetRow;
         ballCol = attackChoice;
         yield return StartCoroutine(
-            ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol)));
+            ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol))
+        );
 
         CheckForPickups();
 
         bool goal = !tackle &&
             ((attacker == Actor.Player && ballRow == gridManager.rows - 1) ||
-             (attacker == Actor.AI && ballRow == 0));
+             (attacker == Actor.AI     && ballRow == 0));
         if (goal)
         {
             StartCoroutine(PenaltySequence(attacker));
@@ -305,11 +314,12 @@ public class GameManager : MonoBehaviour
         if (tackle)
         {
             Vector3 cellPos = gridManager.GetCellPosition(ballRow, ballCol);
-            var loserPrefab = (attacker == Actor.Player) ? aiLosePrefab : playerLosePrefab;
+            var loserPrefab = attacker == Actor.Player ? aiLosePrefab : playerLosePrefab;
             GameObject loser = Instantiate(loserPrefab, cellPos, Quaternion.identity);
             StartCoroutine(ThrowOffScreen(loser, attacker));
 
             possession = attacker == Actor.Player ? Actor.AI : Actor.Player;
+            matchModifierManager.OnTackle();
             SpawnCharacter();
             StartNewTurn();
         }
@@ -345,19 +355,19 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator PenaltySequence(Actor attacker)
     {
-        penaltyAttacker = attacker;
-        penaltyChoiceMade = false;
+        penaltyAttacker     = attacker;
+        penaltyChoiceMade   = false;
         penaltyAttackChoice = penaltyDefendChoice = -1;
         penaltyPanel.SetActive(true);
         DisableGrid();
 
         penaltyBall.anchoredPosition = penaltyBallStartPos;
-        penaltyBall.localScale = penaltyBallStartScale;
+        penaltyBall.localScale       = penaltyBallStartScale;
         penaltyBall.gameObject.SetActive(true);
 
         goalkeeperImage.sprite = attacker == Actor.Player ? aiGKIdleSprite : playerGKIdleSprite;
         goalkeeperImage.rectTransform.anchoredPosition = goalkeeperIdleAnchor.anchoredPosition;
-        goalkeeperImage.rectTransform.localScale = goalkeeperBaseScale;
+        goalkeeperImage.rectTransform.localScale      = goalkeeperBaseScale;
         goalkeeperImage.gameObject.SetActive(true);
 
         if (attacker == Actor.Player)
@@ -367,8 +377,10 @@ public class GameManager : MonoBehaviour
 
         while (!penaltyChoiceMade) yield return null;
 
-        Vector2 shoot = penaltyButtons[penaltyAttackChoice].GetComponent<RectTransform>().anchoredPosition;
-        Vector2 def = penaltyButtons[penaltyDefendChoice].GetComponent<RectTransform>().anchoredPosition;
+        Vector2 shoot = penaltyButtons[penaltyAttackChoice]
+            .GetComponent<RectTransform>().anchoredPosition;
+        Vector2 def = penaltyButtons[penaltyDefendChoice]
+            .GetComponent<RectTransform>().anchoredPosition;
         Vector2 idle = goalkeeperIdleAnchor.anchoredPosition;
         var flip = goalkeeperBaseScale;
         flip.x = def.x < idle.x ? -Mathf.Abs(flip.x) : Mathf.Abs(flip.x);
@@ -382,16 +394,22 @@ public class GameManager : MonoBehaviour
             float tB = Mathf.Clamp01(e2 / penaltyAnimDuration);
             float tK = Mathf.Clamp01(e2 / goalkeeperJumpDuration);
 
-            penaltyBall.anchoredPosition = Vector2.Lerp(penaltyBallStartPos, shoot, tB);
-            penaltyBall.localScale = Vector3.Lerp(penaltyBallStartScale, penaltyBallEndScale, tB);
+            penaltyBall.anchoredPosition = Vector2.Lerp(
+                penaltyBallStartPos, shoot, tB
+            );
+            penaltyBall.localScale = Vector3.Lerp(
+                penaltyBallStartScale, penaltyBallEndScale, tB
+            );
             goalkeeperImage.rectTransform.anchoredPosition = Vector2.Lerp(idle, def, tK);
             yield return null;
         }
 
         yield return new WaitForSeconds(afterAnimDelay);
 
-        penaltyButtons[penaltyAttackChoice].GetComponent<Image>().color = Color.green;
-        penaltyButtons[penaltyDefendChoice].GetComponent<Image>().color = Color.red;
+        penaltyButtons[penaltyAttackChoice]
+            .GetComponent<Image>().color = Color.green;
+        penaltyButtons[penaltyDefendChoice]
+            .GetComponent<Image>().color = Color.red;
 
         bool saved = penaltyAttackChoice == penaltyDefendChoice;
         if (saved)
@@ -441,11 +459,11 @@ public class GameManager : MonoBehaviour
     public void OnPenaltyButton(int idx)
     {
         if (penaltyAttacker == Actor.Player) penaltyAttackChoice = idx;
-        else penaltyDefendChoice = idx;
+        else                                penaltyDefendChoice = idx;
         penaltyChoiceMade = true;
     }
 
-    // Adjacent + Focus + Burned filtering
+    // Adjacent + Focus + Burned + Optional full-range filtering
     private List<int> GetAdjacentColumns()
     {
         var adj = new List<int>();
@@ -462,17 +480,23 @@ public class GameManager : MonoBehaviour
         _allowedColumns.Clear();
         if (tr < 0 || tr >= gridManager.rows) return;
 
-        var adjacency = GetAdjacentColumns();
-        // remove burned column
+        // choose base set: adjacent or full range
+        List<int> baseCols = restrictToAdjacent
+            ? GetAdjacentColumns()
+            : new List<int>(System.Linq.Enumerable.Range(0, gridManager.cols));
+
+        // remove burned column if any
         var burned = matchModifierManager.GetBurnedColumn(attacker == Actor.Player);
         if (burned.HasValue)
-            adjacency.Remove(burned.Value);
+            baseCols.Remove(burned.Value);
+
         // apply power-up filter
         var powered = powerUpManager.GetAllowedColumns(attacker.ToString());
-        foreach (int c in adjacency)
+        foreach (int c in baseCols)
             if (powered.Contains(c))
                 _allowedColumns.Add(c);
 
+        // highlight
         foreach (int c in _allowedColumns)
             gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
     }
