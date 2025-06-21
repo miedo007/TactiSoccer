@@ -7,7 +7,6 @@ using TMPro;
 using MoreMountains.Feedbacks;
 using System.Linq;
 
-
 public class GameManager : MonoBehaviour
 {
     [Header("References (assign in Inspector)")]
@@ -128,6 +127,14 @@ public class GameManager : MonoBehaviour
         {
             rulesPanel.SetActive(false);
             rulesButton.onClick.AddListener(() => rulesPanel.SetActive(!rulesPanel.activeSelf));
+        }
+
+        // *** FIX: wire up penalty buttons so OnPenaltyButton is called ***
+        for (int i = 0; i < penaltyButtons.Length; i++)
+        {
+            int idx = i;
+            penaltyButtons[i].onClick.RemoveAllListeners();
+            penaltyButtons[i].onClick.AddListener(() => OnPenaltyButton(idx));
         }
 
         goalkeeperBaseScale = goalkeeperImage.rectTransform.localScale;
@@ -477,7 +484,9 @@ public class GameManager : MonoBehaviour
         if (tr < 0 || tr >= gridManager.rows) return;
 
         // base columns
-        var baseCols = restrictToAdjacent ? GetAdjacentColumns() : new List<int>(Enumerable.Range(0, gridManager.cols));
+        var baseCols = restrictToAdjacent
+            ? GetAdjacentColumns()
+            : Enumerable.Range(0, gridManager.cols).ToList();
 
         // filter by Focus power-up
         if (enablePowerUps)
