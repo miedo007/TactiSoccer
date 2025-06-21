@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a51caa599e9a02042870821e2c921f57, type: 3}
   m_Name: MirrorClash
   m_EditorClassIdentifier: 
-  modifierName: 
-  description: 
-  icon: {fileID: 0}
-  type: 0
+  modifierName: Mirror Clash
+  description: if attacker and defender pick symmetrical columns, the ball moves
+    back one row.
+  icon: {fileID: 5632821140356901969, guid: 99297542e2dcaae48a0c6bcb018d98dc, type: 3}
+  type: 2

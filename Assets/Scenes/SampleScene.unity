@@ -620,6 +620,9 @@ MonoBehaviour:
   rulesPanel: {fileID: 1572865869}
   rulesText: {fileID: 242679113}
   rulesButton: {fileID: 1062568476}
+  restrictToAdjacent: 0
+  enablePowerUps: 0
+  enableModifiers: 1
 --- !u!4 &161872744
 Transform:
   m_ObjectHideFlags: 0
@@ -1332,6 +1335,7 @@ MonoBehaviour:
   allModifiers:
   - {fileID: 11400000, guid: 1d5cb588663dbcb4baea53425b1ddfb3, type: 2}
   - {fileID: 11400000, guid: aa79bc9f4afea0346b41b30a71f9126f, type: 2}
+  - {fileID: 11400000, guid: c56f76b35d03b7948b349a5b35197bff, type: 2}
   activeModifiers: []
 --- !u!1 &435900001
 GameObject:
@@ -5773,7 +5777,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1495929138
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6063,7 +6067,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1740708610
 MonoBehaviour:
   m_ObjectHideFlags: 0
