@@ -1,7 +1,5 @@
-// Assets/Scripts/GameManager.cs
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -115,8 +113,7 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
-        // Sanity checks omitted for brevity...
-
+        // rules button toggle
         if (rulesButton != null && rulesPanel != null)
         {
             rulesPanel.SetActive(false);
@@ -134,6 +131,7 @@ public class GameManager : MonoBehaviour
         UpdateGoldUI();
         messageText.text = string.Empty;
 
+        // hook up bet UI
         bet5Button.onClick.AddListener(() => OnBetSelected(5));
         bet10Button.onClick.AddListener(() => OnBetSelected(10));
         bet20Button.onClick.AddListener(() => OnBetSelected(20));
@@ -241,10 +239,20 @@ public class GameManager : MonoBehaviour
     private IEnumerator ResolveTurn(int targetRow)
     {
         Actor attacker = possession;
-        // Record last‐used column for both Player and AI
-        matchModifierManager.SetLastUsedColumn(attacker == Actor.Player, attackChoice);
-
         bool tackle = (attackChoice == defendChoice);
+
+        // Mirror Clash
+        if (matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MirrorClash)
+            && matchModifierManager.IsMirrorClash(attackChoice, defendChoice))
+        {
+            matchModifierManager.TryMirrorClash(ref ballRow, attacker == Actor.Player);
+            ShowMessage("🔄 Mirror Clash! Ball reversed!", 1f);
+            yield return new WaitForSeconds(afterAnimDelay);
+            ClearHighlights();
+            yield return StartCoroutine(ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol)));
+            StartNewTurn();
+            yield break;
+        }
 
         // Momentum Limit enforcement
         if (!tackle
@@ -261,6 +269,7 @@ public class GameManager : MonoBehaviour
         {
             ShowMessage(attacker == Actor.Player ? "Tackled!" : "Tackle!", 1f);
             (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
+            matchModifierManager.OnTackle();
         }
         else
         {
@@ -270,6 +279,9 @@ public class GameManager : MonoBehaviour
             pot += bonusPerAdvance;
             UpdatePotUI();
         }
+
+        // Burned Column tracking
+        matchModifierManager.SetLastUsedColumn(attacker == Actor.Player, attackChoice);
 
         yield return new WaitForSeconds(tackleAnimDuration);
         ClearHighlights();
@@ -298,7 +310,6 @@ public class GameManager : MonoBehaviour
             StartCoroutine(ThrowOffScreen(loser, attacker));
 
             possession = attacker == Actor.Player ? Actor.AI : Actor.Player;
-            matchModifierManager.OnTackle();
             SpawnCharacter();
             StartNewTurn();
         }
@@ -434,7 +445,7 @@ public class GameManager : MonoBehaviour
         penaltyChoiceMade = true;
     }
 
-    // Adjacent + Focus + BurnedColumn filtering
+    // Adjacent + Focus + Burned filtering
     private List<int> GetAdjacentColumns()
     {
         var adj = new List<int>();
@@ -451,24 +462,17 @@ public class GameManager : MonoBehaviour
         _allowedColumns.Clear();
         if (tr < 0 || tr >= gridManager.rows) return;
 
-        // adjacency
         var adjacency = GetAdjacentColumns();
-        // focus power-up
+        // remove burned column
+        var burned = matchModifierManager.GetBurnedColumn(attacker == Actor.Player);
+        if (burned.HasValue)
+            adjacency.Remove(burned.Value);
+        // apply power-up filter
         var powered = powerUpManager.GetAllowedColumns(attacker.ToString());
-
         foreach (int c in adjacency)
             if (powered.Contains(c))
                 _allowedColumns.Add(c);
 
-        // Burned Column modifier
-        if (matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
-        {
-            int burned = matchModifierManager.GetLastUsedColumn(attacker == Actor.Player);
-            if (burned >= 0)
-                _allowedColumns.Remove(burned);
-        }
-
-        // highlight
         foreach (int c in _allowedColumns)
             gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
     }
@@ -559,16 +563,14 @@ public class GameManager : MonoBehaviour
         foreach (var mod in matchModifierManager.activeModifiers)
         {
             var go = Instantiate(modifierIconPrefab, modifierIconsContainer);
-            var img = go.GetComponent<Image>();
-            if (img != null)
+            if (go.TryGetComponent<Image>(out var img))
                 img.sprite = mod.icon;
-            // if you have a tooltip script on the prefab, set its text here
         }
 
         // populate rules panel text
         if (rulesText != null)
         {
-            var sb = new StringBuilder();
+            var sb = new System.Text.StringBuilder();
             foreach (var mod in matchModifierManager.activeModifiers)
                 sb.AppendLine($"• <b>{mod.modifierName}</b>: {mod.description}");
             rulesText.text = sb.ToString();

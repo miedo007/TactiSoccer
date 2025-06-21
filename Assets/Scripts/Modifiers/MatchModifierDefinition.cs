@@ -13,6 +13,7 @@ public class MatchModifierDefinition : ScriptableObject
     {
         MomentumLimit,
         BurnedColumn,
-        // you can add more here later
+        MirrorClash,
+        // (you can add more here later)
     }
 }

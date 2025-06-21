@@ -10,85 +10,113 @@ public class MatchModifierManager : MonoBehaviour
     [HideInInspector]
     public List<MatchModifierDefinition> activeModifiers = new List<MatchModifierDefinition>();
 
-    // For a momentum limit, count how many back‐to‐back advances we've done
+    // --- Momentum Limit state ---
     private int _consecutiveAdvances = 0;
 
-    // For Burned Column, track the last used column per actor
+    // --- Burned Column state ---
     private int _lastPlayerColumn = -1;
     private int _lastAIColumn     = -1;
 
+    // We assume GridManager exists in scene
+    private int ColumnCount => FindObjectOfType<GridManager>().cols;
+
     /// <summary>
-    /// Randomly picks 1 or 2 modifiers at the start of a match,
-    /// and resets all per‐match state.
+    /// Randomly picks up to two modifiers for this match
+    /// and resets all per-match tracking.
     /// </summary>
     public void PickRandomModifiers()
     {
         activeModifiers.Clear();
-        _consecutiveAdvances = 0;
-        _lastPlayerColumn = -1;
-        _lastAIColumn     = -1;
-
         var pool = new List<MatchModifierDefinition>(allModifiers);
-        // pick up to 2 at random
         for (int i = 0; i < 2 && pool.Count > 0; i++)
         {
             int idx = Random.Range(0, pool.Count);
             activeModifiers.Add(pool[idx]);
             pool.RemoveAt(idx);
         }
+
+        // reset trackers
+        _consecutiveAdvances = 0;
+        _lastPlayerColumn = -1;
+        _lastAIColumn     = -1;
     }
 
-    /// <summary>
-    /// Returns true if the given modifier type is active this match.
-    /// </summary>
     public bool HasModifier(MatchModifierDefinition.ModifierType t)
     {
         return activeModifiers.Exists(m => m.type == t);
     }
 
-    /// <summary>
-    /// Call when a player or AI successfully advances.
-    /// </summary>
+    // ---------------------------------------------------
+    // Momentum Limit
+    // ---------------------------------------------------
     public void OnAdvance()
     {
         if (HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit))
             _consecutiveAdvances++;
     }
 
-    /// <summary>
-    /// Returns whether advancing is currently allowed under the MomentumLimit rule.
-    /// </summary>
     public bool CanAdvance()
     {
         if (HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit))
-            return _consecutiveAdvances < 3; // use 3 as the limit
+            return _consecutiveAdvances < 3;
         return true;
     }
 
-    /// <summary>
-    /// Call whenever a tackle occurs to reset momentum.
-    /// </summary>
     public void OnTackle()
     {
+        // reset the momentum counter
         _consecutiveAdvances = 0;
     }
 
+    // ---------------------------------------------------
+    // Burned Column
+    // ---------------------------------------------------
     /// <summary>
-    /// Record which column was just used by Player (true) or AI (false).
-    /// Call this immediately after attackChoice is finalized.
+    /// Remember which column this actor just used.
     /// </summary>
-    public void SetLastUsedColumn(bool isPlayer, int col)
+    public void SetLastUsedColumn(bool isPlayer, int column)
     {
-        if (isPlayer)  _lastPlayerColumn = col;
-        else           _lastAIColumn     = col;
+        if (!HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn)) return;
+        if (isPlayer) _lastPlayerColumn = column;
+        else          _lastAIColumn     = column;
     }
 
     /// <summary>
-    /// Retrieve the last used column for Player (true) or AI (false).
-    /// Returns -1 if none yet.
+    /// Returns the column this actor cannot use this turn (if any).
     /// </summary>
-    public int GetLastUsedColumn(bool isPlayer)
+    public int? GetBurnedColumn(bool isPlayer)
     {
+        if (!HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
+            return null;
         return isPlayer ? _lastPlayerColumn : _lastAIColumn;
+    }
+
+    // ---------------------------------------------------
+    // Mirror Clash
+    // ---------------------------------------------------
+    /// <summary>
+    /// Returns true if the two chosen columns are symmetrically opposite.
+    /// </summary>
+    public bool IsMirrorClash(int attackerColumn, int defenderColumn)
+    {
+        if (!HasModifier(MatchModifierDefinition.ModifierType.MirrorClash))
+            return false;
+
+        // e.g. for 5 columns (0..4), pairs (0,4), (1,3) sum to 4
+        return attackerColumn + defenderColumn == (ColumnCount - 1);
+    }
+
+    /// <summary>
+    /// If MirrorClash applies, moves the ball back one row and returns true.
+    /// Call this at the top of your ResolveTurn coroutine in GameManager.
+    /// </summary>
+    public bool TryMirrorClash(ref int ballRow, bool attackerIsPlayer)
+    {
+        if (!HasModifier(MatchModifierDefinition.ModifierType.MirrorClash))
+            return false;
+
+        // move ball back one row
+        ballRow += attackerIsPlayer ? -1 : +1;
+        return true;
     }
 }
