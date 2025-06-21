@@ -113,9 +113,11 @@ public class MatchModifierManager : MonoBehaviour
     /// <summary>
     /// When Mirror Clash triggers, pushes the ball back one row.
     /// </summary>
-    public void ApplyMirrorClash(ref int ballRow)
+   public void ApplyMirrorClash(ref int ballRow, GameManager.Actor attacker)
     {
         if (_gridManager == null) return;
-        ballRow = Mathf.Clamp(ballRow - 1, 0, _gridManager.rows - 1);
+        // Player “back” is row-1; AI “back” is row+1
+        int delta = (attacker == GameManager.Actor.Player) ? -1 : +1;
+        ballRow = Mathf.Clamp(ballRow + delta, 0, _gridManager.rows - 1);
     }
 }

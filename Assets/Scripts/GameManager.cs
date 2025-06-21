@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-// 1) import the Feel namespace
 using MoreMountains.Feedbacks;
 using System.Linq;
 
@@ -30,10 +29,6 @@ public class GameManager : MonoBehaviour
 
     [Header("Penalty GK Position")]
     public RectTransform goalkeeperIdleAnchor;
-
-    [Header("Penalty Ball UI")]
-    [Tooltip("Anchored position where the penalty ball should start (in the penalty panel).")]
-    public Vector2 penaltyBallStartPosition;
 
     [Header("UI Text")]
     public TextMeshProUGUI goldText;
@@ -111,6 +106,7 @@ public class GameManager : MonoBehaviour
     private Actor penaltyAttacker;
     private bool penaltyChoiceMade;
     private int penaltyAttackChoice, penaltyDefendChoice;
+    private Vector2 penaltyBallStartPos;
     private Vector3 goalkeeperBaseScale;
 
     private Coroutine _clearMsgCoroutine;
@@ -132,15 +128,16 @@ public class GameManager : MonoBehaviour
             rulesButton.onClick.AddListener(() => rulesPanel.SetActive(!rulesPanel.activeSelf));
         }
 
-        // capture inspector‐set start position
-        penaltyBallStartPosition = penaltyBall.anchoredPosition;
-        goalkeeperBaseScale     = goalkeeperImage.rectTransform.localScale;
+        // store penalty-ball base position/scale
+        penaltyBallStartPos = penaltyBall.anchoredPosition;
+        goalkeeperBaseScale = goalkeeperImage.rectTransform.localScale;
 
-        // initialize grid cells
+        // init grid
         for (int r = 0; r < gridManager.rows; r++)
             for (int c = 0; c < gridManager.cols; c++)
                 gridManager.cells[r, c].GetComponent<Cell>().Initialize(r, c, this);
 
+        // UI
         playerGold = startingGold;
         UpdateGoldUI();
         messageText.text = "";
@@ -153,14 +150,6 @@ public class GameManager : MonoBehaviour
 
         betPanel.SetActive(true);
         DisableGrid();
-
-        // hook up penalty buttons
-        for (int i = 0; i < penaltyButtons.Length; i++)
-        {
-            int idx = i;
-            penaltyButtons[i].onClick.RemoveAllListeners();
-            penaltyButtons[i].onClick.AddListener(() => OnPenaltyButton(idx));
-        }
     }
 
     void SpawnCharacter()
@@ -168,7 +157,7 @@ public class GameManager : MonoBehaviour
         if (ballInstance != null) Destroy(ballInstance);
         var prefab = possession == Actor.Player ? ballPrefab : aiPrefab;
         ballInstance = Instantiate(prefab, gridManager.GetCellPosition(ballRow, ballCol), Quaternion.identity);
-        ballCtrl      = ballInstance.GetComponent<BallController>();
+        ballCtrl = ballInstance.GetComponent<BallController>();
     }
 
     void OnBetSelected(int amount)
@@ -183,8 +172,8 @@ public class GameManager : MonoBehaviour
         rulesPanel?.SetActive(false);
 
         possession = Random.value < 0.5f ? Actor.Player : Actor.AI;
-        ballRow    = gridManager.rows / 2;
-        ballCol    = gridManager.cols / 2;
+        ballRow = gridManager.rows / 2;
+        ballCol = gridManager.cols / 2;
 
         penaltyPanel.SetActive(false);
         penaltyBall.gameObject.SetActive(false);
@@ -219,7 +208,8 @@ public class GameManager : MonoBehaviour
         SpawnCharacter();
         EnableGrid();
 
-        if (enablePowerUps) powerUpSpawner.SpawnDrops();
+        if (enablePowerUps)
+            powerUpSpawner.SpawnDrops();
 
         StartNewTurn();
     }
@@ -233,7 +223,7 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            phase        = Phase.AwaitingDefense;
+            phase = Phase.AwaitingDefense;
             HighlightRow(ballRow - 1, Actor.AI);
             attackChoice = AIAttackGuess();
         }
@@ -262,9 +252,35 @@ public class GameManager : MonoBehaviour
     private IEnumerator ResolveTurn(int targetRow)
     {
         Actor attacker = possession;
-        bool tackle    = attackChoice == defendChoice;
+        bool tackle = (attackChoice == defendChoice);
 
-        // (MirrorClash, MomentumLimit, BurnedColumn logic goes here...)
+        // Mirror Clash
+        if (enableModifiers
+            && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MirrorClash)
+            && matchModifierManager.IsMirrorClash(attackChoice, defendChoice))
+        {
+            matchModifierManager.ApplyMirrorClash(ref ballRow, attacker);
+            ShowMessage("🔄 Mirror Clash! Ball moves back!", 1f);
+            yield return new WaitForSeconds(afterAnimDelay);
+            penaltyBall.anchoredPosition = penaltyBallStartPos; // reset just in case
+            ClearHighlights();
+            yield return StartCoroutine(
+                ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol))
+            );
+            StartNewTurn();
+            yield break;
+        }
+
+        // Momentum Limit
+        if (!tackle && enableModifiers
+            && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
+            && !matchModifierManager.CanAdvance())
+        {
+            tackle = true;
+            ShowMessage("🔄 Momentum Limit! Must be tackled!", 1f);
+            (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
+            matchModifierManager.OnTackle();
+        }
 
         if (tackle)
         {
@@ -281,6 +297,7 @@ public class GameManager : MonoBehaviour
             UpdatePotUI();
         }
 
+        // Burned Column
         if (enableModifiers)
             matchModifierManager.SetLastUsedColumn(attacker, attackChoice);
 
@@ -290,13 +307,15 @@ public class GameManager : MonoBehaviour
         ballRow = targetRow;
         ballCol = attackChoice;
         yield return StartCoroutine(
-            ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol)));
+            ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol))
+        );
 
-        if (enablePowerUps) CheckForPickups();
+        if (enablePowerUps)
+            CheckForPickups();
 
         bool goal = !tackle &&
-                    ((attacker == Actor.Player && ballRow == gridManager.rows - 1) ||
-                     (attacker == Actor.AI     && ballRow == 0));
+            ((attacker == Actor.Player && ballRow == gridManager.rows - 1) ||
+             (attacker == Actor.AI && ballRow == 0));
         if (goal)
         {
             StartCoroutine(PenaltySequence(attacker));
@@ -305,14 +324,13 @@ public class GameManager : MonoBehaviour
 
         if (tackle)
         {
-            var cellPos = gridManager.GetCellPosition(ballRow, ballCol);
-            var loser   = Instantiate(
-                attacker == Actor.Player ? aiLosePrefab : playerLosePrefab,
-                cellPos, Quaternion.identity
-            );
+            Vector3 cellPos = gridManager.GetCellPosition(ballRow, ballCol);
+            GameObject loserPrefab = attacker == Actor.Player ? aiLosePrefab : playerLosePrefab;
+            var loser = Instantiate(loserPrefab, cellPos, Quaternion.identity);
             StartCoroutine(ThrowOffScreen(loser, attacker));
 
             possession = attacker == Actor.Player ? Actor.AI : Actor.Player;
+            if (enableModifiers) matchModifierManager.OnTackle();
             SpawnCharacter();
             StartNewTurn();
         }
@@ -334,8 +352,8 @@ public class GameManager : MonoBehaviour
     {
         float elapsed = 0f;
         Vector3 start = loser.transform.position;
-        Vector3 dir   = attacker == Actor.Player ? Vector3.down : Vector3.up;
-        Vector3 end   = start + dir * (gridManager.rows + 1);
+        Vector3 dir = attacker == Actor.Player ? Vector3.down : Vector3.up;
+        Vector3 end = start + dir * (gridManager.rows + 1);
 
         while (elapsed < tackleAnimDuration)
         {
@@ -348,37 +366,51 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator PenaltySequence(Actor attacker)
     {
-        penaltyAttacker    = attacker;
-        penaltyChoiceMade  = false;
+        penaltyAttacker = attacker;
+        penaltyChoiceMade = false;
         penaltyAttackChoice = penaltyDefendChoice = -1;
-
         penaltyPanel.SetActive(true);
         DisableGrid();
 
-        // restore inspector-set start
-        penaltyBall.anchoredPosition = penaltyBallStartPosition;
-        penaltyBall.localScale       = penaltyBallStartScale;
+        // reset ball visuals
+        penaltyBall.anchoredPosition = penaltyBallStartPos;
+        penaltyBall.localScale = penaltyBallStartScale;
         penaltyBall.gameObject.SetActive(true);
 
-        goalkeeperImage.sprite                   = attacker == Actor.Player ? aiGKIdleSprite : playerGKIdleSprite;
+        // keeper idle
+        goalkeeperImage.sprite = attacker == Actor.Player ? aiGKIdleSprite : playerGKIdleSprite;
         goalkeeperImage.rectTransform.anchoredPosition = goalkeeperIdleAnchor.anchoredPosition;
-        goalkeeperImage.rectTransform.localScale      = goalkeeperBaseScale;
+        goalkeeperImage.rectTransform.localScale = goalkeeperBaseScale;
         goalkeeperImage.gameObject.SetActive(true);
 
+        // wire up buttons each time
+        foreach (var btn in penaltyButtons)
+        {
+            btn.interactable = true;
+            btn.GetComponent<Image>().color = Color.white;
+            btn.onClick.RemoveAllListeners();
+            int idx = System.Array.IndexOf(penaltyButtons, btn);
+            btn.onClick.AddListener(() => OnPenaltyButton(idx));
+        }
+
+        // pre-pick
         if (attacker == Actor.Player)
             penaltyDefendChoice = Random.Range(0, penaltyButtons.Length);
         else
             penaltyAttackChoice = Random.Range(0, penaltyButtons.Length);
 
+        // wait for choice
         while (!penaltyChoiceMade) yield return null;
 
-        var shoot = penaltyButtons[penaltyAttackChoice].GetComponent<RectTransform>().anchoredPosition;
-        var def   = penaltyButtons[penaltyDefendChoice].GetComponent<RectTransform>().anchoredPosition;
-        var idle  = goalkeeperIdleAnchor.anchoredPosition;
-        var flip  = goalkeeperBaseScale;
+        Vector2 shoot = penaltyButtons[penaltyAttackChoice].GetComponent<RectTransform>().anchoredPosition;
+        Vector2 def   = penaltyButtons[penaltyDefendChoice].GetComponent<RectTransform>().anchoredPosition;
+        Vector2 idle  = goalkeeperIdleAnchor.anchoredPosition;
+
+        // animate
+        var flip = goalkeeperBaseScale;
         flip.x = def.x < idle.x ? -Mathf.Abs(flip.x) : Mathf.Abs(flip.x);
         goalkeeperImage.rectTransform.localScale = flip;
-        goalkeeperImage.sprite                  = attacker == Actor.Player ? aiGKJumpSprite : playerGKJumpSprite;
+        goalkeeperImage.sprite = attacker == Actor.Player ? aiGKJumpSprite : playerGKJumpSprite;
 
         float e2 = 0f;
         while (e2 < penaltyAnimDuration)
@@ -387,8 +419,8 @@ public class GameManager : MonoBehaviour
             float tB = Mathf.Clamp01(e2 / penaltyAnimDuration);
             float tK = Mathf.Clamp01(e2 / goalkeeperJumpDuration);
 
-            penaltyBall.anchoredPosition = Vector2.Lerp(penaltyBallStartPosition, shoot, tB);
-            penaltyBall.localScale       = Vector3.Lerp(penaltyBallStartScale, penaltyBallEndScale, tB);
+            penaltyBall.anchoredPosition = Vector2.Lerp(penaltyBallStartPos, shoot, tB);
+            penaltyBall.localScale = Vector3.Lerp(penaltyBallStartScale, penaltyBallEndScale, tB);
             goalkeeperImage.rectTransform.anchoredPosition = Vector2.Lerp(idle, def, tK);
             yield return null;
         }
@@ -404,12 +436,6 @@ public class GameManager : MonoBehaviour
             ShowMessage(attacker == Actor.Player ? "Countered" : "Saved", 1f);
             (attacker == Actor.Player ? feedbackPenaltyCounter : feedbackPenaltySaved)?.PlayFeedbacks();
             possession = attacker == Actor.Player ? Actor.AI : Actor.Player;
-
-            foreach (var btn in penaltyButtons)
-            {
-                btn.interactable = true;
-                btn.GetComponent<Image>().color = Color.white;
-            }
 
             penaltyBall.gameObject.SetActive(false);
             penaltyPanel.SetActive(false);
@@ -446,11 +472,11 @@ public class GameManager : MonoBehaviour
     public void OnPenaltyButton(int idx)
     {
         penaltyChoiceMade = true;
-        if (penaltyAttacker == Actor.Player) penaltyAttackChoice = idx;
-        else                                penaltyDefendChoice = idx;
+        penaltyAttackChoice = (penaltyAttacker == Actor.Player) ? idx : penaltyAttackChoice;
+        penaltyDefendChoice = (penaltyAttacker == Actor.AI)    ? idx : penaltyDefendChoice;
     }
 
-    // Highlight logic: adjacent + focus + burned
+    // Adjacent + Focus + Burned logic for highlight
     private List<int> GetAdjacentColumns()
     {
         var adj = new List<int> { ballCol };
@@ -465,18 +491,18 @@ public class GameManager : MonoBehaviour
         _allowedColumns.Clear();
         if (tr < 0 || tr >= gridManager.rows) return;
 
+        // base columns
         var baseCols = restrictToAdjacent
             ? GetAdjacentColumns()
             : Enumerable.Range(0, gridManager.cols).ToList();
 
+        // filter by Focus power-up
         if (enablePowerUps)
             baseCols = baseCols.FindAll(c => powerUpManager.GetAllowedColumns(attacker.ToString()).Contains(c));
 
-        if (enableModifiers &&
-            matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
-        {
+        // filter by match modifiers (Burned Column)
+        if (enableModifiers && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
             baseCols.Remove(matchModifierManager.GetLastUsedColumn(attacker));
-        }
 
         foreach (int c in baseCols)
         {
@@ -500,7 +526,7 @@ public class GameManager : MonoBehaviour
             cellGO.GetComponent<Cell>().Highlight(false);
     }
 
-    private void UpdatePotUI()  => potText.text = $"Pot: {pot}g";
+    private void UpdatePotUI() => potText.text = $"Pot: {pot}g";
     private void UpdateGoldUI() => goldText.text = $"Gold: {playerGold}g";
 
     private void EndMatch()
@@ -518,8 +544,8 @@ public class GameManager : MonoBehaviour
         restartButton.gameObject.SetActive(false);
         messageText.text = "";
         possession = Random.value < 0.5f ? Actor.Player : Actor.AI;
-        ballRow    = gridManager.rows / 2;
-        ballCol    = gridManager.cols / 2;
+        ballRow = gridManager.rows / 2;
+        ballCol = gridManager.cols / 2;
 
         penaltyPanel.SetActive(false);
         penaltyBall.gameObject.SetActive(false);
@@ -558,22 +584,25 @@ public class GameManager : MonoBehaviour
     private IEnumerator ClearAfter(float t)
     {
         yield return new WaitForSeconds(t);
-        messageText.text      = "";
+        messageText.text = "";
         _clearMsgCoroutine = null;
     }
 
     private void PopulateModifiersUI()
     {
+        // clear old icons
         foreach (Transform child in modifierIconsContainer)
             Destroy(child.gameObject);
 
+        // instantiate new icons
         foreach (var mod in matchModifierManager.activeModifiers)
         {
-            var go  = Instantiate(modifierIconPrefab, modifierIconsContainer);
+            var go = Instantiate(modifierIconPrefab, modifierIconsContainer);
             var img = go.GetComponent<Image>();
             if (img != null) img.sprite = mod.icon;
         }
 
+        // populate rules panel text
         if (rulesText != null)
         {
             var sb = new System.Text.StringBuilder();
