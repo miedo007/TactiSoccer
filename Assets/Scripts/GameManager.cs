@@ -262,7 +262,6 @@ public class GameManager : MonoBehaviour
             matchModifierManager.ApplyMirrorClash(ref ballRow, attacker);
             ShowMessage("🔄 Mirror Clash! Ball moves back!", 1f);
             yield return new WaitForSeconds(afterAnimDelay);
-            penaltyBall.anchoredPosition = penaltyBallStartPos; // reset just in case
             ClearHighlights();
             yield return StartCoroutine(
                 ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol))
@@ -406,7 +405,7 @@ public class GameManager : MonoBehaviour
         Vector2 def   = penaltyButtons[penaltyDefendChoice].GetComponent<RectTransform>().anchoredPosition;
         Vector2 idle  = goalkeeperIdleAnchor.anchoredPosition;
 
-        // animate
+        // animate jump & shot
         var flip = goalkeeperBaseScale;
         flip.x = def.x < idle.x ? -Mathf.Abs(flip.x) : Mathf.Abs(flip.x);
         goalkeeperImage.rectTransform.localScale = flip;
@@ -472,15 +471,15 @@ public class GameManager : MonoBehaviour
     public void OnPenaltyButton(int idx)
     {
         penaltyChoiceMade = true;
-        penaltyAttackChoice = (penaltyAttacker == Actor.Player) ? idx : penaltyAttackChoice;
-        penaltyDefendChoice = (penaltyAttacker == Actor.AI)    ? idx : penaltyDefendChoice;
+        if (penaltyAttacker == Actor.Player) penaltyAttackChoice = idx;
+        else                              penaltyDefendChoice = idx;
     }
 
-    // Adjacent + Focus + Burned logic for highlight
+    // Adjacent + Focus + Burned + Locked logic for highlight
     private List<int> GetAdjacentColumns()
     {
         var adj = new List<int> { ballCol };
-        if (ballCol - 1 >= 0) adj.Add(ballCol - 1);
+        if (ballCol - 1 >= 0)      adj.Add(ballCol - 1);
         if (ballCol + 1 < gridManager.cols) adj.Add(ballCol + 1);
         return adj;
     }
@@ -496,14 +495,19 @@ public class GameManager : MonoBehaviour
             ? GetAdjacentColumns()
             : Enumerable.Range(0, gridManager.cols).ToList();
 
-        // filter by Focus power-up
+        // Focus power-up filter
         if (enablePowerUps)
             baseCols = baseCols.FindAll(c => powerUpManager.GetAllowedColumns(attacker.ToString()).Contains(c));
 
-        // filter by match modifiers (Burned Column)
+        // Burned Column filter
         if (enableModifiers && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
             baseCols.Remove(matchModifierManager.GetLastUsedColumn(attacker));
 
+        // Locked Column filter
+        if (enableModifiers && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn))
+            baseCols.Remove(matchModifierManager.GetLockedColumn());
+
+        // final highlight
         foreach (int c in baseCols)
         {
             _allowedColumns.Add(c);

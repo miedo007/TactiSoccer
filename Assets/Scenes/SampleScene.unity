@@ -586,7 +586,6 @@ MonoBehaviour:
   aiGKIdleSprite: {fileID: -2845747556652654866, guid: 02c11daf571965648860da8e6f409db0, type: 3}
   aiGKJumpSprite: {fileID: -2845747556652654866, guid: 02c11daf571965648860da8e6f409db0, type: 3}
   goalkeeperIdleAnchor: {fileID: 855036019}
-  penaltyBallStartPosition: {x: 0, y: 0}
   goldText: {fileID: 1958302146}
   potText: {fileID: 29458162}
   messageText: {fileID: 1107994776}
@@ -1337,6 +1336,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 1d5cb588663dbcb4baea53425b1ddfb3, type: 2}
   - {fileID: 11400000, guid: aa79bc9f4afea0346b41b30a71f9126f, type: 2}
   - {fileID: 11400000, guid: c56f76b35d03b7948b349a5b35197bff, type: 2}
+  - {fileID: 11400000, guid: 372cf088c1a11374f80de2be57b1c43e, type: 2}
   activeModifiers: []
 --- !u!1 &435900001
 GameObject:

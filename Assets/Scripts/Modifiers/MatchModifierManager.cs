@@ -17,6 +17,9 @@ public class MatchModifierManager : MonoBehaviour
     private int _lastPlayerColumn = -1;
     private int _lastAIColumn     = -1;
 
+    // --- Locked Column state ---
+    private int _lockedColumn = -1;
+
     // Mirror Clash needs the grid dimensions
     private GridManager _gridManager;
 
@@ -39,17 +42,25 @@ public class MatchModifierManager : MonoBehaviour
         activeModifiers.Clear();
         var pool = new List<MatchModifierDefinition>(allModifiers);
 
+        // reset state before repopulating
+        _consecutiveAdvances = 0;
+        _lastPlayerColumn    = -1;
+        _lastAIColumn        = -1;
+        _lockedColumn        = -1;
+
         for (int i = 0; i < 2 && pool.Count > 0; i++)
         {
             int idx = Random.Range(0, pool.Count);
-            activeModifiers.Add(pool[idx]);
+            var mod = pool[idx];
+            activeModifiers.Add(mod);
             pool.RemoveAt(idx);
-        }
 
-        // Reset all modifier state
-        _consecutiveAdvances = 0;
-        _lastPlayerColumn = -1;
-        _lastAIColumn     = -1;
+            if (mod.type == MatchModifierDefinition.ModifierType.LockedColumn && _gridManager != null)
+            {
+                // pick one column at random to lock for the match
+                _lockedColumn = Random.Range(0, _gridManager.cols);
+            }
+        }
     }
 
     public bool HasModifier(MatchModifierDefinition.ModifierType t)
@@ -98,6 +109,18 @@ public class MatchModifierManager : MonoBehaviour
             : _lastAIColumn;
     }
 
+    // --- Locked Column query ---
+
+    /// <summary>
+    /// Returns the locked column index (0-based), or -1 if none.
+    /// </summary>
+    public int GetLockedColumn()
+    {
+        return HasModifier(MatchModifierDefinition.ModifierType.LockedColumn)
+            ? _lockedColumn
+            : -1;
+    }
+
     // --- Mirror Clash hooks ---
 
     /// <summary>
@@ -113,7 +136,7 @@ public class MatchModifierManager : MonoBehaviour
     /// <summary>
     /// When Mirror Clash triggers, pushes the ball back one row.
     /// </summary>
-   public void ApplyMirrorClash(ref int ballRow, GameManager.Actor attacker)
+    public void ApplyMirrorClash(ref int ballRow, GameManager.Actor attacker)
     {
         if (_gridManager == null) return;
         // Player “back” is row-1; AI “back” is row+1

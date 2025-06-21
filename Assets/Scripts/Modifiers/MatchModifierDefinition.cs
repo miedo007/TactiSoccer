@@ -14,6 +14,7 @@ public class MatchModifierDefinition : ScriptableObject
         MomentumLimit,
         BurnedColumn,
         MirrorClash,
+        LockedColumn,
         // (you can add more here later)
     }
 }
