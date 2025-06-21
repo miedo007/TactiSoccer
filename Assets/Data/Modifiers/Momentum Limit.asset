@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: Momentum Limit
   m_EditorClassIdentifier: 
   modifierName: Momentum Limit
-  description: 
-  icon: {fileID: 0}
+  description: You can only advance 3 times in a row. Then you must be tackled
+  icon: {fileID: 2061219240541987770, guid: 541e2938808cbb741883815b77ab97bd, type: 3}
   type: 0
