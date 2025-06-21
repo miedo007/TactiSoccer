@@ -12,6 +12,7 @@ public class MatchModifierDefinition : ScriptableObject
     public enum ModifierType
     {
         MomentumLimit,
+        BurnedColumn,
         // you can add more here later
     }
 }

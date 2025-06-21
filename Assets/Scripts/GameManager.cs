@@ -1,5 +1,7 @@
+// Assets/Scripts/GameManager.cs
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -113,7 +115,8 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
-        // Sanity checks (as before)...
+        // Sanity checks omitted for brevity...
+
         if (rulesButton != null && rulesPanel != null)
         {
             rulesPanel.SetActive(false);
@@ -122,6 +125,7 @@ public class GameManager : MonoBehaviour
 
         goalkeeperBaseScale = goalkeeperImage.rectTransform.localScale;
 
+        // initialize grid
         for (int r = 0; r < gridManager.rows; r++)
             for (int c = 0; c < gridManager.cols; c++)
                 gridManager.cells[r, c].GetComponent<Cell>().Initialize(r, c, this);
@@ -237,6 +241,9 @@ public class GameManager : MonoBehaviour
     private IEnumerator ResolveTurn(int targetRow)
     {
         Actor attacker = possession;
+        // Record last‐used column for both Player and AI
+        matchModifierManager.SetLastUsedColumn(attacker == Actor.Player, attackChoice);
+
         bool tackle = (attackChoice == defendChoice);
 
         // Momentum Limit enforcement
@@ -427,7 +434,7 @@ public class GameManager : MonoBehaviour
         penaltyChoiceMade = true;
     }
 
-    // Adjacent + Focus-filtered highlight
+    // Adjacent + Focus + BurnedColumn filtering
     private List<int> GetAdjacentColumns()
     {
         var adj = new List<int>();
@@ -444,13 +451,24 @@ public class GameManager : MonoBehaviour
         _allowedColumns.Clear();
         if (tr < 0 || tr >= gridManager.rows) return;
 
+        // adjacency
         var adjacency = GetAdjacentColumns();
+        // focus power-up
         var powered = powerUpManager.GetAllowedColumns(attacker.ToString());
 
         foreach (int c in adjacency)
             if (powered.Contains(c))
                 _allowedColumns.Add(c);
 
+        // Burned Column modifier
+        if (matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
+        {
+            int burned = matchModifierManager.GetLastUsedColumn(attacker == Actor.Player);
+            if (burned >= 0)
+                _allowedColumns.Remove(burned);
+        }
+
+        // highlight
         foreach (int c in _allowedColumns)
             gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
     }
@@ -537,7 +555,7 @@ public class GameManager : MonoBehaviour
         foreach (Transform child in modifierIconsContainer)
             Destroy(child.gameObject);
 
-        // instantiate new icons (no built-in tooltip)
+        // instantiate new icons
         foreach (var mod in matchModifierManager.activeModifiers)
         {
             var go = Instantiate(modifierIconPrefab, modifierIconsContainer);
@@ -550,7 +568,7 @@ public class GameManager : MonoBehaviour
         // populate rules panel text
         if (rulesText != null)
         {
-            var sb = new System.Text.StringBuilder();
+            var sb = new StringBuilder();
             foreach (var mod in matchModifierManager.activeModifiers)
                 sb.AppendLine($"• <b>{mod.modifierName}</b>: {mod.description}");
             rulesText.text = sb.ToString();
