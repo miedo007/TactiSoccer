@@ -262,20 +262,21 @@ public class GameManager : MonoBehaviour
         bool tackle = (attackChoice == defendChoice);
 
         // Mirror Clash
-        if (enableModifiers
-            && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MirrorClash)
-            && matchModifierManager.IsMirrorClash(attackChoice, defendChoice))
-        {
-            matchModifierManager.ApplyMirrorClash(ref ballRow, attacker);
-            ShowMessage("Mirror Clash! Ball moves back!", 1f);
-            yield return new WaitForSeconds(afterAnimDelay);
-            ClearHighlights();
-            yield return StartCoroutine(
-                ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol))
-            );
-            StartNewTurn();
-            yield break;
-        }
+        if (!tackle
+    && enableModifiers
+    && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MirrorClash)
+    && matchModifierManager.IsMirrorClash(attackChoice, defendChoice))
+{
+    matchModifierManager.ApplyMirrorClash(ref ballRow, attacker);
+    ShowMessage("Mirror Clash! Ball moves back!", 1f);
+    yield return new WaitForSeconds(afterAnimDelay);
+    ClearHighlights();
+    yield return StartCoroutine(
+        ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol))
+    );
+    StartNewTurn();
+    yield break;
+}
 
         // Momentum Limit
         if (!tackle && enableModifiers
