@@ -43,6 +43,10 @@ public class GameManager : MonoBehaviour
     public TextMeshProUGUI potText;
     public TextMeshProUGUI messageText;
 
+    [Header("Modifier UI")]
+    [Tooltip("Separate text field to display modifier alerts")]
+    public TextMeshProUGUI modifierText;
+
     [Header("Bet UI")]
     public GameObject betPanel;
     public Button bet5Button;
@@ -76,7 +80,7 @@ public class GameManager : MonoBehaviour
 
     [Header("Power-Up (assign in Inspector)")]
     public PowerUpManager powerUpManager;
-    public PowerUpSpawner  powerUpSpawner;
+    public PowerUpSpawner powerUpSpawner;
 
     [Header("Match Modifiers (assign in Inspector)")]
     public MatchModifierManager matchModifierManager;
@@ -92,9 +96,9 @@ public class GameManager : MonoBehaviour
 
     [Header("Feature Toggles")]
     [Tooltip("Turn off to disable all power-up spawning and effects.")]
-    public bool enablePowerUps   = true;
+    public bool enablePowerUps = true;
     [Tooltip("Turn off to disable all match modifiers and their effects.")]
-    public bool enableModifiers  = true;
+    public bool enableModifiers = true;
 
     // private state
     private int playerGold, currentBet, pot;
@@ -118,6 +122,7 @@ public class GameManager : MonoBehaviour
     private Vector3 goalkeeperBaseScale;
 
     private Coroutine _clearMsgCoroutine;
+    private Coroutine _clearModifierCoroutine;
     private List<int> _allowedColumns = new List<int>();
     private List<GameObject> _revealMarkers = new List<GameObject>();
 
@@ -139,7 +144,7 @@ public class GameManager : MonoBehaviour
         penaltyBallStartPos = penaltyBall.anchoredPosition;
         goalkeeperBaseScale = goalkeeperImage.rectTransform.localScale;
 
-        // Initialize cells
+        // Initialize grid cells
         for (int r = 0; r < gridManager.rows; r++)
             for (int c = 0; c < gridManager.cols; c++)
                 gridManager.cells[r, c].GetComponent<Cell>().Initialize(r, c, this);
@@ -147,6 +152,7 @@ public class GameManager : MonoBehaviour
         playerGold = startingGold;
         UpdateGoldUI();
         messageText.text = "";
+        modifierText.text = "";
 
         bet5Button.onClick.AddListener(() => OnBetSelected(5));
         bet10Button.onClick.AddListener(() => OnBetSelected(10));
@@ -161,7 +167,7 @@ public class GameManager : MonoBehaviour
     void SpawnCharacter()
     {
         if (ballInstance != null) Destroy(ballInstance);
-        var prefab = (possession == Actor.Player) ? ballPrefab : aiPrefab;
+        var prefab = possession == Actor.Player ? ballPrefab : aiPrefab;
         ballInstance = Instantiate(prefab,
             gridManager.GetCellPosition(ballRow, ballCol),
             Quaternion.identity);
@@ -179,7 +185,7 @@ public class GameManager : MonoBehaviour
         }
         rulesPanel?.SetActive(false);
 
-        possession = (Random.value < 0.5f) ? Actor.Player : Actor.AI;
+        possession = Random.value < 0.5f ? Actor.Player : Actor.AI;
         ballRow = gridManager.rows / 2;
         ballCol = gridManager.cols / 2;
 
@@ -204,10 +210,7 @@ public class GameManager : MonoBehaviour
         pot = currentBet * 2;
         UpdatePotUI();
 
-        ShowMessage(
-            possession == Actor.Player ? "You Kick-Off" : "Opponent Kick-Off",
-            1.5f
-        );
+        ShowMessage(possession == Actor.Player ? "You Kick-Off" : "Opponent Kick-Off", 1.5f);
 
         betPanel.SetActive(false);
         bet5Button.gameObject.SetActive(false);
@@ -225,50 +228,45 @@ public class GameManager : MonoBehaviour
 
     void StartNewTurn()
     {
-        // pick a fast-lane each turn
+        // Pick a fast-lane each turn
         if (enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath))
-    {
-        matchModifierManager.PickFastLaneColumn();
-    }
+            && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath))
+        {
+            matchModifierManager.PickFastLaneColumn();
+        }
 
-    int targetRow = (possession == Actor.Player ? ballRow + 1 : ballRow - 1);
+        int targetRow = possession == Actor.Player ? ballRow + 1 : ballRow - 1;
 
-    // highlight allowed row cells
-    if (possession == Actor.Player)
-    {
-        phase = Phase.PlayerAttack;
-        HighlightRow(targetRow, Actor.Player);
-    }
-    else
-    {
-        phase = Phase.AwaitingDefense;
-        HighlightRow(targetRow, Actor.AI);
-        attackChoice = AIAttackGuess();
-    }
-
-    // always highlight the fast-lane cell
-    int fastCol = matchModifierManager.GetFastLaneColumn();
-    if (fastCol >= 0 && targetRow >= 0 && targetRow < gridManager.rows)
-    {
-        // pulse highlight
-        var cell = gridManager.cells[targetRow, fastCol].GetComponent<Cell>();
-        cell.Highlight(true);
-
-        // tint overlay
-        var sr = cell.GetComponent<SpriteRenderer>();
-        sr.color = new Color(0f, 1f, 1f, 0.5f);
-
-        // only show the message on the player's turn
+        // Highlight allowed row cells
         if (possession == Actor.Player)
-            ShowMessage("Fast Lane ×2!", 1f);
+        {
+            phase = Phase.PlayerAttack;
+            HighlightRow(targetRow, Actor.Player);
+        }
+        else
+        {
+            phase = Phase.AwaitingDefense;
+            HighlightRow(targetRow, Actor.AI);
+            attackChoice = AIAttackGuess();
+        }
+
+        // Always highlight the fast-lane cell
+        int fastCol = matchModifierManager.GetFastLaneColumn();
+        if (fastCol >= 0 && targetRow >= 0 && targetRow < gridManager.rows)
+        {
+            var cell = gridManager.cells[targetRow, fastCol].GetComponent<Cell>();
+            cell.Highlight(true);
+            var sr = cell.GetComponent<SpriteRenderer>();
+            sr.color = new Color(0f, 1f, 1f, 0.5f);
+
+     
+        }
     }
-}
 
     public void OnCellClicked(int r, int c)
     {
         if (betPanel.activeSelf) return;
-        int tr = (possession == Actor.Player ? ballRow + 1 : ballRow - 1);
+        int tr = possession == Actor.Player ? ballRow + 1 : ballRow - 1;
         if (r != tr || (_allowedColumns.Count > 0 && !_allowedColumns.Contains(c)))
             return;
 
@@ -288,19 +286,18 @@ public class GameManager : MonoBehaviour
     private IEnumerator ResolveTurn(int targetRow)
     {
         Actor attacker = possession;
-        bool tackle = (attackChoice == defendChoice);
+        bool tackle = attackChoice == defendChoice;
 
         // 1) Reveal picks
-        int playerPick = (possession == Actor.Player) ? attackChoice : defendChoice;
-        int aiPick     = (possession == Actor.Player) ? defendChoice : attackChoice;
+        int playerPick = possession == Actor.Player ? attackChoice : defendChoice;
+        int aiPick = possession == Actor.Player ? defendChoice : attackChoice;
 
         if (revealMarkerPlayerPrefab != null)
         {
             var pm = Instantiate(
                 revealMarkerPlayerPrefab,
                 gridManager.GetCellPosition(targetRow, playerPick),
-                Quaternion.identity
-            );
+                Quaternion.identity);
             _revealMarkers.Add(pm);
         }
         yield return new WaitForSeconds(revealStaggerDelay);
@@ -310,22 +307,20 @@ public class GameManager : MonoBehaviour
             var am = Instantiate(
                 revealMarkerAIPrefab,
                 gridManager.GetCellPosition(targetRow, aiPick),
-                Quaternion.identity
-            );
+                Quaternion.identity);
             _revealMarkers.Add(am);
         }
         yield return new WaitForSeconds(revealStaggerDelay);
-
         ClearRevealMarkers();
 
-        // 2) Mirror Clash
+        // 2) Mirror Clash (modifier)
         if (!tackle
             && enableModifiers
             && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MirrorClash)
             && matchModifierManager.IsMirrorClash(attackChoice, defendChoice))
         {
             matchModifierManager.ApplyMirrorClash(ref ballRow, attacker);
-            ShowMessage("Mirror Clash! Ball moves back!", 1f);
+            ShowModifier("Mirror Clash! Ball moves back!", 1f);
             yield return new WaitForSeconds(afterAnimDelay);
             ClearHighlights();
             yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
@@ -333,19 +328,19 @@ public class GameManager : MonoBehaviour
             yield break;
         }
 
-        // 3) Momentum Limit
+        // 3) Momentum Limit (modifier)
         if (!tackle
             && enableModifiers
             && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
             && !matchModifierManager.CanAdvance())
         {
             tackle = true;
-            ShowMessage("Momentum Limit! Must be tackled!", 1f);
+            ShowModifier("Momentum Limit! Must be tackled!", 1f);
             (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
             matchModifierManager.OnTackle();
         }
 
-        // 4) Tackle or Dribble
+        // 4) Tackle or Dribble (gameplay)
         if (tackle)
         {
             ballRow = targetRow;
@@ -356,11 +351,11 @@ public class GameManager : MonoBehaviour
             (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
             if (enableModifiers) matchModifierManager.OnTackle();
 
-            var loserPrefab = (attacker == Actor.Player) ? aiLosePrefab : playerLosePrefab;
-            var loser       = Instantiate(loserPrefab, gridManager.GetCellPosition(ballRow, ballCol), Quaternion.identity);
+            var loserPrefab = attacker == Actor.Player ? aiLosePrefab : playerLosePrefab;
+            var loser = Instantiate(loserPrefab, gridManager.GetCellPosition(ballRow, ballCol), Quaternion.identity);
             StartCoroutine(ThrowOffScreen(loser, attacker));
 
-            possession = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
+            possession = attacker == Actor.Player ? Actor.AI : Actor.Player;
             SpawnCharacter();
             StartNewTurn();
             yield break;
@@ -374,7 +369,7 @@ public class GameManager : MonoBehaviour
             UpdatePotUI();
         }
 
-        // 5) Column Loyalty
+        // 5) Column Loyalty (modifier)
         int loyaltyBoost = 0;
         if (!tackle
             && enableModifiers
@@ -382,10 +377,10 @@ public class GameManager : MonoBehaviour
         {
             loyaltyBoost = matchModifierManager.GetLoyaltyBoost(attacker, attackChoice);
             if (loyaltyBoost > 0)
-                ShowMessage("Column Loyalty! Extra row!", 1f);
+                ShowModifier("Column Loyalty! Extra row!", 1f);
         }
 
-        // 6) Flight Path boost
+        // 6) Flight Path boost (modifier)
         int flightBoost = 0;
         if (!tackle
             && enableModifiers
@@ -393,10 +388,10 @@ public class GameManager : MonoBehaviour
             && attackChoice == matchModifierManager.GetFastLaneColumn())
         {
             flightBoost = 1;
-            ShowMessage("Flight Path! Fast Lane ×2", 1f);
+            ShowModifier("Flight Path! Fast Lane ×2", 1f);
         }
 
-        // 7) Burned Column
+        // 7) Burned Column update
         if (enableModifiers)
             matchModifierManager.SetLastUsedColumn(attacker, attackChoice);
 
@@ -405,11 +400,11 @@ public class GameManager : MonoBehaviour
 
         // 8) Advance with boosts
         {
-            int dir        = (attacker == Actor.Player) ? +1 : -1;
+            int dir = attacker == Actor.Player ? +1 : -1;
             int totalBoost = loyaltyBoost + flightBoost;
-            int newRow     = ballRow + dir + (totalBoost * dir);
-            ballRow        = Mathf.Clamp(newRow, 0, gridManager.rows - 1);
-            ballCol        = attackChoice;
+            int newRow = ballRow + dir + (totalBoost * dir);
+            ballRow = Mathf.Clamp(newRow, 0, gridManager.rows - 1);
+            ballCol = attackChoice;
         }
 
         yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
@@ -420,7 +415,7 @@ public class GameManager : MonoBehaviour
         // 9) Check goal
         bool goal = !tackle &&
                     ((attacker == Actor.Player && ballRow == gridManager.rows - 1) ||
-                     (attacker == Actor.AI     && ballRow == 0));
+                     (attacker == Actor.AI && ballRow == 0));
         if (goal)
         {
             StartCoroutine(PenaltySequence(attacker));
@@ -429,6 +424,34 @@ public class GameManager : MonoBehaviour
 
         // 10) Next turn
         StartNewTurn();
+    }
+
+    private void ShowMessage(string msg, float duration)
+    {
+        if (_clearMsgCoroutine != null) StopCoroutine(_clearMsgCoroutine);
+        messageText.text = msg;
+        _clearMsgCoroutine = StartCoroutine(ClearAfter(duration));
+    }
+
+    private IEnumerator ClearAfter(float t)
+    {
+        yield return new WaitForSeconds(t);
+        messageText.text = "";
+        _clearMsgCoroutine = null;
+    }
+
+    private void ShowModifier(string msg, float duration)
+    {
+        if (_clearModifierCoroutine != null) StopCoroutine(_clearModifierCoroutine);
+        modifierText.text = msg;
+        _clearModifierCoroutine = StartCoroutine(ClearModifierAfter(duration));
+    }
+
+    private IEnumerator ClearModifierAfter(float t)
+    {
+        yield return new WaitForSeconds(t);
+        modifierText.text = "";
+        _clearModifierCoroutine = null;
     }
 
     private void ClearRevealMarkers()
@@ -447,10 +470,10 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator ThrowOffScreen(GameObject loser, Actor attacker)
     {
-        float elapsed      = 0f;
-        Vector3 start      = loser.transform.position;
-        Vector3 dir        = (attacker == Actor.Player) ? Vector3.down : Vector3.up;
-        Vector3 end        = start + dir * (gridManager.rows + 1);
+        float elapsed = 0f;
+        Vector3 start = loser.transform.position;
+        Vector3 dir = attacker == Actor.Player ? Vector3.down : Vector3.up;
+        Vector3 end = start + dir * (gridManager.rows + 1);
 
         while (elapsed < tackleAnimDuration)
         {
@@ -464,19 +487,19 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator PenaltySequence(Actor attacker)
     {
-        penaltyAttacker     = attacker;
-        penaltyChoiceMade   = false;
+        penaltyAttacker = attacker;
+        penaltyChoiceMade = false;
         penaltyAttackChoice = penaltyDefendChoice = -1;
         penaltyPanel.SetActive(true);
         DisableGrid();
 
         penaltyBall.anchoredPosition = penaltyBallStartPos;
-        penaltyBall.localScale       = penaltyBallStartScale;
+        penaltyBall.localScale = penaltyBallStartScale;
         penaltyBall.gameObject.SetActive(true);
 
-        goalkeeperImage.sprite                   = (attacker == Actor.Player) ? aiGKIdleSprite : playerGKIdleSprite;
+        goalkeeperImage.sprite = attacker == Actor.Player ? aiGKIdleSprite : playerGKIdleSprite;
         goalkeeperImage.rectTransform.anchoredPosition = goalkeeperIdleAnchor.anchoredPosition;
-        goalkeeperImage.rectTransform.localScale       = goalkeeperBaseScale;
+        goalkeeperImage.rectTransform.localScale = goalkeeperBaseScale;
         goalkeeperImage.gameObject.SetActive(true);
 
         foreach (var btn in penaltyButtons)
@@ -488,18 +511,20 @@ public class GameManager : MonoBehaviour
             btn.onClick.AddListener(() => OnPenaltyButton(idx));
         }
 
-        if (attacker == Actor.Player) penaltyDefendChoice = Random.Range(0, penaltyButtons.Length);
-        else                          penaltyAttackChoice = Random.Range(0, penaltyButtons.Length);
+        if (attacker == Actor.Player)
+            penaltyDefendChoice = Random.Range(0, penaltyButtons.Length);
+        else
+            penaltyAttackChoice = Random.Range(0, penaltyButtons.Length);
 
         while (!penaltyChoiceMade) yield return null;
 
         var shoot = penaltyButtons[penaltyAttackChoice].GetComponent<RectTransform>().anchoredPosition;
-        var def   = penaltyButtons[penaltyDefendChoice].GetComponent<RectTransform>().anchoredPosition;
-        var idle  = goalkeeperIdleAnchor.anchoredPosition;
+        var defPos = penaltyButtons[penaltyDefendChoice].GetComponent<RectTransform>().anchoredPosition;
+        var idle = goalkeeperIdleAnchor.anchoredPosition;
         var flipScale = goalkeeperBaseScale;
-        flipScale.x = (def.x < idle.x) ? -Mathf.Abs(flipScale.x) : Mathf.Abs(flipScale.x);
+        flipScale.x = defPos.x < idle.x ? -Mathf.Abs(flipScale.x) : Mathf.Abs(flipScale.x);
         goalkeeperImage.rectTransform.localScale = flipScale;
-        goalkeeperImage.sprite = (attacker == Actor.Player) ? aiGKJumpSprite : playerGKJumpSprite;
+        goalkeeperImage.sprite = attacker == Actor.Player ? aiGKJumpSprite : playerGKJumpSprite;
 
         float e2 = 0f;
         while (e2 < penaltyAnimDuration)
@@ -507,9 +532,10 @@ public class GameManager : MonoBehaviour
             e2 += Time.deltaTime;
             float tB = Mathf.Clamp01(e2 / penaltyAnimDuration);
             float tK = Mathf.Clamp01(e2 / goalkeeperJumpDuration);
+
             penaltyBall.anchoredPosition = Vector2.Lerp(penaltyBallStartPos, shoot, tB);
-            penaltyBall.localScale       = Vector3.Lerp(penaltyBallStartScale, penaltyBallEndScale, tB);
-            goalkeeperImage.rectTransform.anchoredPosition = Vector2.Lerp(idle, def, tK);
+            penaltyBall.localScale = Vector3.Lerp(penaltyBallStartScale, penaltyBallEndScale, tB);
+            goalkeeperImage.rectTransform.anchoredPosition = Vector2.Lerp(idle, defPos, tK);
             yield return null;
         }
 
@@ -518,12 +544,12 @@ public class GameManager : MonoBehaviour
         penaltyButtons[penaltyAttackChoice].GetComponent<Image>().color = Color.green;
         penaltyButtons[penaltyDefendChoice].GetComponent<Image>().color = Color.red;
 
-        bool saved = (penaltyAttackChoice == penaltyDefendChoice);
+        bool saved = penaltyAttackChoice == penaltyDefendChoice;
         if (saved)
         {
-            ShowMessage(attacker == Actor.Player ? "Countered" : "Saved", 1f);
+            ShowModifier(attacker == Actor.Player ? "Countered" : "Saved", 1f);
             (attacker == Actor.Player ? feedbackPenaltyCounter : feedbackPenaltySaved)?.PlayFeedbacks();
-            possession = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
+            possession = attacker == Actor.Player ? Actor.AI : Actor.Player;
 
             penaltyBall.gameObject.SetActive(false);
             penaltyPanel.SetActive(false);
@@ -605,13 +631,13 @@ public class GameManager : MonoBehaviour
     }
 
     private int AIAttackGuess() =>
-        (_allowedColumns.Count > 0)
+        _allowedColumns.Count > 0
             ? _allowedColumns[Random.Range(0, _allowedColumns.Count)]
             : Random.Range(0, gridManager.cols);
 
     private int AI_DefenseGuess() => Random.Range(0, gridManager.cols);
 
-    private void UpdatePotUI()  => potText.text = $"Pot: {pot}g";
+    private void UpdatePotUI() => potText.text = $"Pot: {pot}g";
     private void UpdateGoldUI() => goldText.text = $"Gold: {playerGold}g";
 
     private void EndMatch()
@@ -628,6 +654,7 @@ public class GameManager : MonoBehaviour
     {
         restartButton.gameObject.SetActive(false);
         messageText.text = "";
+        modifierText.text = "";
         possession = Random.value < 0.5f ? Actor.Player : Actor.AI;
         ballRow = gridManager.rows / 2;
         ballCol = gridManager.cols / 2;
@@ -657,20 +684,6 @@ public class GameManager : MonoBehaviour
             cellGO.GetComponent<Collider2D>().enabled = true;
     }
 
-    private void ShowMessage(string msg, float duration)
-    {
-        if (_clearMsgCoroutine != null) StopCoroutine(_clearMsgCoroutine);
-        messageText.text = msg;
-        _clearMsgCoroutine = StartCoroutine(ClearAfter(duration));
-    }
-
-    private IEnumerator ClearAfter(float t)
-    {
-        yield return new WaitForSeconds(t);
-        messageText.text = "";
-        _clearMsgCoroutine = null;
-    }
-
     private void PopulateModifiersUI()
     {
         foreach (Transform child in modifierIconsContainer)
@@ -678,7 +691,7 @@ public class GameManager : MonoBehaviour
 
         foreach (var mod in matchModifierManager.activeModifiers)
         {
-            var go  = Instantiate(modifierIconPrefab, modifierIconsContainer);
+            var go = Instantiate(modifierIconPrefab, modifierIconsContainer);
             var img = go.GetComponent<Image>();
             if (img != null) img.sprite = mod.icon;
         }
