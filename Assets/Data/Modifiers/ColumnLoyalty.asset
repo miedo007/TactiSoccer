@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a51caa599e9a02042870821e2c921f57, type: 3}
   m_Name: ColumnLoyalty
   m_EditorClassIdentifier: 
-  modifierName: 
-  description: 
-  icon: {fileID: 0}
-  type: 0
+  modifierName: Column Loyalty
+  description: Advance twice in the same column to leap two rows on your second advance.
+  icon: {fileID: 7706766155818749191, guid: 1d0d7909dfd2be549be1ab82cb66ff32, type: 3}
+  type: 4
