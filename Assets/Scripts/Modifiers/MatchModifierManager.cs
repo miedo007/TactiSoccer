@@ -26,6 +26,9 @@ public class MatchModifierManager : MonoBehaviour
     private int _prevAICol     = -1;
     private int _aiStreak      = 0;
 
+    // --- Flight Path state ---
+    private int _fastLaneColumn = -1;
+
     // Mirror Clash needs the grid dimensions
     private GridManager _gridManager;
 
@@ -54,6 +57,7 @@ public class MatchModifierManager : MonoBehaviour
         _playerStreak        = 0;
         _prevAICol           = -1;
         _aiStreak            = 0;
+        _fastLaneColumn      = -1;
 
         for (int i = 0; i < 2 && pool.Count > 0; i++)
         {
@@ -132,10 +136,6 @@ public class MatchModifierManager : MonoBehaviour
     }
 
     // --- Column Loyalty hooks ---
-    /// <summary>
-    /// Returns 1 if this is the second advance in the same column; else 0.
-    /// Also updates streak counters.
-    /// </summary>
     public int GetLoyaltyBoost(GameManager.Actor actor, int column)
     {
         if (!HasModifier(MatchModifierDefinition.ModifierType.ColumnLoyalty))
@@ -150,8 +150,6 @@ public class MatchModifierManager : MonoBehaviour
                 _prevPlayerCol = column;
                 _playerStreak = 1;
             }
-
-            // only on the second consecutive
             return (_playerStreak == 2) ? 1 : 0;
         }
         else
@@ -165,5 +163,26 @@ public class MatchModifierManager : MonoBehaviour
             }
             return (_aiStreak == 2) ? 1 : 0;
         }
+    }
+
+    // --- Flight Path hooks ---
+    /// <summary>
+    /// Call once per turn to pick a random “fast lane” column.
+    /// </summary>
+    public void PickFastLaneColumn()
+    {
+        if (!HasModifier(MatchModifierDefinition.ModifierType.FlightPath) || _gridManager == null)
+            return;
+        _fastLaneColumn = Random.Range(0, _gridManager.cols);
+    }
+
+    /// <summary>
+    /// Returns the current fast-lane column, or –1 if inactive.
+    /// </summary>
+    public int GetFastLaneColumn()
+    {
+        return HasModifier(MatchModifierDefinition.ModifierType.FlightPath)
+            ? _fastLaneColumn
+            : -1;
     }
 }
