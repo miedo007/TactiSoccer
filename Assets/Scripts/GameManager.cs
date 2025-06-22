@@ -17,6 +17,14 @@ public class GameManager : MonoBehaviour
     public GameObject playerLosePrefab;
     public GameObject aiLosePrefab;
 
+    [Header("Reveal Picks UI")]
+    [Tooltip("Prefab for showing player's chosen cell prior to resolution.")]
+    public GameObject revealMarkerPlayerPrefab;
+    [Tooltip("Prefab for showing AI's chosen cell prior to resolution.")]
+    public GameObject revealMarkerAIPrefab;
+    [Tooltip("Delay between player reveal and AI reveal.")]
+    public float revealStaggerDelay = 0.2f;
+
     [Header("Penalty UI (Canvas)")]
     public GameObject penaltyPanel;
     public Button[] penaltyButtons;
@@ -87,10 +95,6 @@ public class GameManager : MonoBehaviour
     public bool enablePowerUps   = true;
     [Tooltip("Turn off to disable all match modifiers and their effects.")]
     public bool enableModifiers  = true;
-
-    [Header("Reveal Picks UI")]
-    [Tooltip("Prefab for showing each chosen cell prior to resolution.")]
-    public GameObject revealMarkerPrefab;
 
     // private state
     private int playerGold, currentBet, pot;
@@ -262,10 +266,32 @@ public class GameManager : MonoBehaviour
         Actor attacker = possession;
         bool tackle = (attackChoice == defendChoice);
 
-        // 1) Reveal picks
-        RevealPick(targetRow, attackChoice, Color.blue);
-        RevealPick(targetRow, defendChoice, Color.red);
-        yield return new WaitForSeconds(0.6f);
+        // 1) Reveal player's pick first, then AI's pick
+        int playerPick = (possession == Actor.Player) ? attackChoice : defendChoice;
+        int aiPick     = (possession == Actor.Player) ? defendChoice : attackChoice;
+
+        if (revealMarkerPlayerPrefab != null)
+        {
+            var pm = Instantiate(
+                revealMarkerPlayerPrefab,
+                gridManager.GetCellPosition(targetRow, playerPick),
+                Quaternion.identity
+            );
+            _revealMarkers.Add(pm);
+        }
+        yield return new WaitForSeconds(revealStaggerDelay);
+
+        if (revealMarkerAIPrefab != null)
+        {
+            var am = Instantiate(
+                revealMarkerAIPrefab,
+                gridManager.GetCellPosition(targetRow, aiPick),
+                Quaternion.identity
+            );
+            _revealMarkers.Add(am);
+        }
+        yield return new WaitForSeconds(revealStaggerDelay);
+
         ClearRevealMarkers();
 
         // 2) Mirror Clash
@@ -278,9 +304,7 @@ public class GameManager : MonoBehaviour
             ShowMessage("Mirror Clash! Ball moves back!", 1f);
             yield return new WaitForSeconds(afterAnimDelay);
             ClearHighlights();
-            yield return StartCoroutine(
-                ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol))
-            );
+            yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
             StartNewTurn();
             yield break;
         }
@@ -299,18 +323,15 @@ public class GameManager : MonoBehaviour
         // 4) Tackle or Dribble
         if (tackle)
         {
-            // move into contested cell
             ballRow = targetRow;
             ballCol = attackChoice;
-            yield return StartCoroutine(
-                ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol))
-            );
+            yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
 
             ShowMessage(attacker == Actor.Player ? "Tackled!" : "Tackle!", 1f);
             (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
             if (enableModifiers) matchModifierManager.OnTackle();
 
-            Vector3 cellPos = gridManager.GetCellPosition(ballRow, ballCol);
+            var cellPos = gridManager.GetCellPosition(ballRow, ballCol);
             var loserPrefab = (attacker == Actor.Player) ? aiLosePrefab : playerLosePrefab;
             var loser = Instantiate(loserPrefab, cellPos, Quaternion.identity);
             StartCoroutine(ThrowOffScreen(loser, attacker));
@@ -356,9 +377,7 @@ public class GameManager : MonoBehaviour
             ballCol = attackChoice;
         }
 
-        yield return StartCoroutine(
-            ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol))
-        );
+        yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
 
         if (enablePowerUps)
             CheckForPickups();
@@ -375,15 +394,6 @@ public class GameManager : MonoBehaviour
 
         // 9) Next turn
         StartNewTurn();
-    }
-
-    private void RevealPick(int row, int col, Color tint)
-    {
-        if (revealMarkerPrefab == null) return;
-        Vector3 pos = gridManager.GetCellPosition(row, col);
-        var m = Instantiate(revealMarkerPrefab, pos, Quaternion.identity);
-        m.GetComponent<SpriteRenderer>().color = tint;
-        _revealMarkers.Add(m);
     }
 
     private void ClearRevealMarkers()
@@ -555,19 +565,19 @@ public class GameManager : MonoBehaviour
             gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
         }
     }
-    private void HighlightRow(int tr) => HighlightRow(tr, possession);
-
-    private int AIAttackGuess() =>
-        (_allowedColumns.Count > 0)
-            ? _allowedColumns[Random.Range(0, _allowedColumns.Count)]
-            : Random.Range(0, gridManager.cols);
-    private int AI_DefenseGuess() => Random.Range(0, gridManager.cols);
 
     private void ClearHighlights()
     {
         foreach (var cellGO in gridManager.AllCells)
             cellGO.GetComponent<Cell>().Highlight(false);
     }
+
+    private int AIAttackGuess() =>
+        (_allowedColumns.Count > 0)
+            ? _allowedColumns[Random.Range(0, _allowedColumns.Count)]
+            : Random.Range(0, gridManager.cols);
+
+    private int AI_DefenseGuess() => Random.Range(0, gridManager.cols);
 
     private void UpdatePotUI()  => potText.text = $"Pot: {pot}g";
     private void UpdateGoldUI() => goldText.text = $"Gold: {playerGold}g";
@@ -611,6 +621,7 @@ public class GameManager : MonoBehaviour
         foreach (var cellGO in gridManager.AllCells)
             cellGO.GetComponent<Collider2D>().enabled = false;
     }
+
     private void EnableGrid()
     {
         foreach (var cellGO in gridManager.AllCells)
