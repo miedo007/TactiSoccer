@@ -20,17 +20,20 @@ public class MatchModifierManager : MonoBehaviour
     // --- Locked Column state ---
     private int _lockedColumn = -1;
 
+    // --- Column Loyalty state ---
+    private int _prevPlayerCol = -1;
+    private int _playerStreak  = 0;
+    private int _prevAICol     = -1;
+    private int _aiStreak      = 0;
+
     // Mirror Clash needs the grid dimensions
     private GridManager _gridManager;
 
     void Awake()
     {
-        // Use the new API instead of the obsolete FindObjectOfType
         _gridManager = Object.FindFirstObjectByType<GridManager>();
         if (_gridManager == null)
-        {
             Debug.LogError("MatchModifierManager: No GridManager found in scene.");
-        }
     }
 
     /// <summary>
@@ -42,11 +45,15 @@ public class MatchModifierManager : MonoBehaviour
         activeModifiers.Clear();
         var pool = new List<MatchModifierDefinition>(allModifiers);
 
-        // reset state before repopulating
+        // reset all modifier state
         _consecutiveAdvances = 0;
         _lastPlayerColumn    = -1;
         _lastAIColumn        = -1;
         _lockedColumn        = -1;
+        _prevPlayerCol       = -1;
+        _playerStreak        = 0;
+        _prevAICol           = -1;
+        _aiStreak            = 0;
 
         for (int i = 0; i < 2 && pool.Count > 0; i++)
         {
@@ -57,7 +64,6 @@ public class MatchModifierManager : MonoBehaviour
 
             if (mod.type == MatchModifierDefinition.ModifierType.LockedColumn && _gridManager != null)
             {
-                // pick one column at random to lock for the match
                 _lockedColumn = Random.Range(0, _gridManager.cols);
             }
         }
@@ -69,21 +75,16 @@ public class MatchModifierManager : MonoBehaviour
     }
 
     // --- Momentum Limit hooks ---
-
     public void OnAdvance()
     {
         if (HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit))
-        {
             _consecutiveAdvances++;
-        }
     }
 
     public bool CanAdvance()
     {
         if (HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit))
-        {
             return _consecutiveAdvances < 3;
-        }
         return true;
     }
 
@@ -93,7 +94,6 @@ public class MatchModifierManager : MonoBehaviour
     }
 
     // --- Burned Column hooks ---
-
     public void SetLastUsedColumn(GameManager.Actor actor, int column)
     {
         if (actor == GameManager.Actor.Player)
@@ -104,16 +104,12 @@ public class MatchModifierManager : MonoBehaviour
 
     public int GetLastUsedColumn(GameManager.Actor actor)
     {
-        return (actor == GameManager.Actor.Player)
+        return actor == GameManager.Actor.Player
             ? _lastPlayerColumn
             : _lastAIColumn;
     }
 
     // --- Locked Column query ---
-
-    /// <summary>
-    /// Returns the locked column index (0-based), or -1 if none.
-    /// </summary>
     public int GetLockedColumn()
     {
         return HasModifier(MatchModifierDefinition.ModifierType.LockedColumn)
@@ -122,25 +118,52 @@ public class MatchModifierManager : MonoBehaviour
     }
 
     // --- Mirror Clash hooks ---
-
-    /// <summary>
-    /// Returns true if the two chosen columns are mirror-symmetrical.
-    /// (i.e. their indices sum to cols-1)
-    /// </summary>
     public bool IsMirrorClash(int attackCol, int defendCol)
     {
         if (_gridManager == null) return false;
         return attackCol + defendCol == (_gridManager.cols - 1);
     }
 
-    /// <summary>
-    /// When Mirror Clash triggers, pushes the ball back one row.
-    /// </summary>
     public void ApplyMirrorClash(ref int ballRow, GameManager.Actor attacker)
     {
         if (_gridManager == null) return;
-        // Player “back” is row-1; AI “back” is row+1
-        int delta = (attacker == GameManager.Actor.Player) ? -1 : +1;
+        int delta = attacker == GameManager.Actor.Player ? -1 : +1;
         ballRow = Mathf.Clamp(ballRow + delta, 0, _gridManager.rows - 1);
+    }
+
+    // --- Column Loyalty hooks ---
+    /// <summary>
+    /// Returns 1 if this is the second advance in the same column; else 0.
+    /// Also updates streak counters.
+    /// </summary>
+    public int GetLoyaltyBoost(GameManager.Actor actor, int column)
+    {
+        if (!HasModifier(MatchModifierDefinition.ModifierType.ColumnLoyalty))
+            return 0;
+
+        if (actor == GameManager.Actor.Player)
+        {
+            if (column == _prevPlayerCol)
+                _playerStreak++;
+            else
+            {
+                _prevPlayerCol = column;
+                _playerStreak = 1;
+            }
+
+            // only on the second consecutive
+            return (_playerStreak == 2) ? 1 : 0;
+        }
+        else
+        {
+            if (column == _prevAICol)
+                _aiStreak++;
+            else
+            {
+                _prevAICol = column;
+                _aiStreak = 1;
+            }
+            return (_aiStreak == 2) ? 1 : 0;
+        }
     }
 }

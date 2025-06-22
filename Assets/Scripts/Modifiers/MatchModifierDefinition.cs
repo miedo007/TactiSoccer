@@ -15,6 +15,7 @@ public class MatchModifierDefinition : ScriptableObject
         BurnedColumn,
         MirrorClash,
         LockedColumn,
+        ColumnLoyalty
         // (you can add more here later)
     }
 }
