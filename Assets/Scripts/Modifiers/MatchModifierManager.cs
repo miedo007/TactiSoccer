@@ -1,4 +1,3 @@
-// Assets/Scripts/Modifiers/MatchModifierManager.cs
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -9,6 +8,25 @@ public class MatchModifierManager : MonoBehaviour
 
     [HideInInspector]
     public List<MatchModifierDefinition> activeModifiers = new List<MatchModifierDefinition>();
+
+    // --- Define incompatible pairs here ---
+    // If you pick A, any listed here will be removed from consideration.
+    private static readonly Dictionary<
+    MatchModifierDefinition.ModifierType,
+    List<MatchModifierDefinition.ModifierType>
+> incompatibleMap = new Dictionary<MatchModifierDefinition.ModifierType, List<MatchModifierDefinition.ModifierType>>
+{
+    { MatchModifierDefinition.ModifierType.BurnedColumn,
+        new List<MatchModifierDefinition.ModifierType> {
+            MatchModifierDefinition.ModifierType.ColumnLoyalty
+        }
+    },
+    { MatchModifierDefinition.ModifierType.ColumnLoyalty,
+        new List<MatchModifierDefinition.ModifierType> {
+            MatchModifierDefinition.ModifierType.BurnedColumn
+        }
+    }
+};
 
     // --- Momentum Limit state ---
     private int _consecutiveAdvances = 0;
@@ -26,9 +44,6 @@ public class MatchModifierManager : MonoBehaviour
     private int _prevAICol     = -1;
     private int _aiStreak      = 0;
 
-    // --- Flight Path state ---
-    private int _fastLaneColumn = -1;
-
     // Mirror Clash needs the grid dimensions
     private GridManager _gridManager;
 
@@ -40,8 +55,8 @@ public class MatchModifierManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Randomly pick up to 2 modifiers at the start of each match
-    /// and reset all counters.
+    /// Randomly pick up to 2 modifiers at the start of each match,
+    /// reset all counters, and ensure incompatible pairs are never both selected.
     /// </summary>
     public void PickRandomModifiers()
     {
@@ -57,15 +72,23 @@ public class MatchModifierManager : MonoBehaviour
         _playerStreak        = 0;
         _prevAICol           = -1;
         _aiStreak            = 0;
-        _fastLaneColumn      = -1;
 
         for (int i = 0; i < 2 && pool.Count > 0; i++)
         {
             int idx = Random.Range(0, pool.Count);
             var mod = pool[idx];
             activeModifiers.Add(mod);
+
+            // remove that modifier from pool
             pool.RemoveAt(idx);
 
+            // remove any incompatible modifiers
+            if (incompatibleMap.TryGetValue(mod.type, out var badTypes))
+            {
+                pool.RemoveAll(m => badTypes.Contains(m.type));
+            }
+
+            // special LockedColumn logic
             if (mod.type == MatchModifierDefinition.ModifierType.LockedColumn && _gridManager != null)
             {
                 _lockedColumn = Random.Range(0, _gridManager.cols);
@@ -148,7 +171,7 @@ public class MatchModifierManager : MonoBehaviour
             else
             {
                 _prevPlayerCol = column;
-                _playerStreak = 1;
+                _playerStreak  = 1;
             }
             return (_playerStreak == 2) ? 1 : 0;
         }
@@ -159,16 +182,15 @@ public class MatchModifierManager : MonoBehaviour
             else
             {
                 _prevAICol = column;
-                _aiStreak = 1;
+                _aiStreak  = 1;
             }
             return (_aiStreak == 2) ? 1 : 0;
         }
     }
 
-    // --- Flight Path hooks ---
-    /// <summary>
-    /// Call once per turn to pick a random “fast lane” column.
-    /// </summary>
+    // --- Flight Path state ---
+    private int _fastLaneColumn = -1;
+
     public void PickFastLaneColumn()
     {
         if (!HasModifier(MatchModifierDefinition.ModifierType.FlightPath) || _gridManager == null)
@@ -176,9 +198,6 @@ public class MatchModifierManager : MonoBehaviour
         _fastLaneColumn = Random.Range(0, _gridManager.cols);
     }
 
-    /// <summary>
-    /// Returns the current fast-lane column, or –1 if inactive.
-    /// </summary>
     public int GetFastLaneColumn()
     {
         return HasModifier(MatchModifierDefinition.ModifierType.FlightPath)
