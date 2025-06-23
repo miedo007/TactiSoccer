@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;       // ← for Touchscreen
 using TMPro;
 using MoreMountains.Feedbacks;
 
@@ -258,8 +259,6 @@ public class GameManager : MonoBehaviour
             cell.Highlight(true);
             var sr = cell.GetComponent<SpriteRenderer>();
             sr.color = new Color(0f, 1f, 1f, 0.5f);
-
-     
         }
     }
 
@@ -424,6 +423,24 @@ public class GameManager : MonoBehaviour
 
         // 10) Next turn
         StartNewTurn();
+    }
+
+    private void Update()
+    {
+        // on touch begin, raycast and forward to OnCellClicked
+        if (Touchscreen.current != null &&
+            Touchscreen.current.primaryTouch.press.wasPressedThisFrame)
+        {
+            Vector2 screenPos = Touchscreen.current.primaryTouch.position.ReadValue();
+            Vector3 worldPoint = Camera.main.ScreenToWorldPoint(screenPos);
+            var hit = Physics2D.Raycast(worldPoint, Vector2.zero);
+            if (hit.collider != null)
+            {
+                var cell = hit.collider.GetComponent<Cell>();
+                if (cell != null)
+                    OnCellClicked(cell.row, cell.col);
+            }
+        }
     }
 
     private void ShowMessage(string msg, float duration)

@@ -1,8 +1,9 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 [RequireComponent(typeof(BoxCollider2D), typeof(SpriteRenderer))]
-public class Cell : MonoBehaviour
+public class Cell : MonoBehaviour, IPointerClickHandler
 {
     [HideInInspector] public int row, col;
     private GameManager gm;
@@ -37,9 +38,29 @@ public class Cell : MonoBehaviour
         gm = gameManager;
     }
 
+    /// <summary>
+    /// Handle desktop mouse clicks directly.
+    /// </summary>
     void OnMouseDown()
     {
-        gm.OnCellClicked(row, col);
+        OnCellTapped();
+    }
+
+    /// <summary>
+    /// Called by touch‐raycast or UI pointer clicks.
+    /// </summary>
+    public void OnCellTapped()
+    {
+        if (gm != null)
+            gm.OnCellClicked(row, col);
+    }
+
+    /// <summary>
+    /// IPointerClickHandler implementation so EventSystem can detect clicks/taps.
+    /// </summary>
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        OnCellTapped();
     }
 
     /// <summary>

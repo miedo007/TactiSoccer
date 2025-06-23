@@ -20,6 +20,10 @@ public class GridManager : MonoBehaviour
     [Tooltip("Extra vertical gap between rows")]
     public float rowSpacing    = 0.1f;
 
+    [Header("Grid Offset")]
+    [Tooltip("Additional offset in local space to shift the entire grid")]
+    public Vector2 gridOriginOffset = Vector2.zero;
+
     [HideInInspector]
     public GameObject[,] cells;
 
@@ -36,17 +40,21 @@ public class GridManager : MonoBehaviour
         float gridWidth  = (cols - 1) * stepX;
         float gridHeight = (rows - 1) * stepY;
 
-        // Offset to center grid on this transform
-        Vector2 originOffset = new Vector2(-gridWidth * 0.5f, -gridHeight * 0.5f);
+        // Center grid around this transform, then apply custom offset
+        Vector2 originOffset = new Vector2(-gridWidth * 0.5f, -gridHeight * 0.5f) + gridOriginOffset;
 
-        // Instantiate each cell
         for (int r = 0; r < rows; r++)
         {
             for (int c = 0; c < cols; c++)
             {
-                Vector2 pos = new Vector2(c * stepX, r * stepY) + originOffset;
-                var cellGO = Instantiate(cellPrefab, (Vector3)pos, Quaternion.identity, transform);
+                // Local position relative to this GameObject
+                Vector3 localPos = new Vector3(c * stepX, r * stepY, 0f) + (Vector3)originOffset;
+
+                // Instantiate as child and set local position
+                var cellGO = Instantiate(cellPrefab, transform);
                 cellGO.name = $"Cell_{r}_{c}";
+                cellGO.transform.localPosition = localPos;
+
                 cells[r, c] = cellGO;
             }
         }
