@@ -652,7 +652,15 @@ public class GameManager : MonoBehaviour
             ? _allowedColumns[Random.Range(0, _allowedColumns.Count)]
             : Random.Range(0, gridManager.cols);
 
-    private int AI_DefenseGuess() => Random.Range(0, gridManager.cols);
+    private int AI_DefenseGuess()
+{
+    // if we’re restricting to adjacent (or any other modifier-filtered)
+    // and we actually have a non-empty allowed list, pick from it:
+    if (restrictToAdjacent && _allowedColumns.Count > 0)
+        return _allowedColumns[Random.Range(0, _allowedColumns.Count)];
+    // otherwise fall back to any column
+    return Random.Range(0, gridManager.cols);
+}
 
     private void UpdatePotUI() => potText.text = $"Pot: {pot}";
     private void UpdateGoldUI() => goldText.text = $"Gold: {playerGold}";
