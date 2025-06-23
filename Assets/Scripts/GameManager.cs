@@ -387,7 +387,7 @@ public class GameManager : MonoBehaviour
             && attackChoice == matchModifierManager.GetFastLaneColumn())
         {
             flightBoost = 1;
-            ShowModifier("Flight Path! Fast Lane ×2", 1f);
+            ShowModifier("Flight Path! Double Advance", 1f);
         }
 
         // 7) Burned Column update
@@ -717,7 +717,7 @@ public class GameManager : MonoBehaviour
         {
             var sb = new System.Text.StringBuilder();
             foreach (var mod in matchModifierManager.activeModifiers)
-                sb.AppendLine($"• <b>{mod.modifierName}</b>: {mod.description}");
+                sb.AppendLine($"<b>{mod.modifierName}</b>: {mod.description}");
             rulesText.text = sb.ToString();
         }
     }
