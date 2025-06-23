@@ -10,7 +10,6 @@ public class MatchModifierManager : MonoBehaviour
     public List<MatchModifierDefinition> activeModifiers = new List<MatchModifierDefinition>();
 
     // --- Define incompatible pairs here ---
-    // If you pick A, any listed here will be removed from consideration.
     private static readonly Dictionary<
         MatchModifierDefinition.ModifierType,
         List<MatchModifierDefinition.ModifierType>
@@ -26,6 +25,7 @@ public class MatchModifierManager : MonoBehaviour
                 MatchModifierDefinition.ModifierType.BurnedColumn
             }
         },
+        // you can add QuitOrDouble incompatibilities here if needed
     };
 
     // --- Momentum Limit state ---
@@ -43,6 +43,9 @@ public class MatchModifierManager : MonoBehaviour
     private int _playerStreak  = 0;
     private int _prevAICol     = -1;
     private int _aiStreak      = 0;
+
+    // --- Quit or Double state ---
+    private int _quitOrDoubleColumn = -1;
 
     // Mirror Clash needs the grid dimensions
     private GridManager _gridManager;
@@ -64,14 +67,15 @@ public class MatchModifierManager : MonoBehaviour
         var pool = new List<MatchModifierDefinition>(allModifiers);
 
         // reset all modifier state
-        _consecutiveAdvances = 0;
-        _lastPlayerColumn    = -1;
-        _lastAIColumn        = -1;
-        _lockedColumn        = -1;
-        _prevPlayerCol       = -1;
-        _playerStreak        = 0;
-        _prevAICol           = -1;
-        _aiStreak            = 0;
+        _consecutiveAdvances   = 0;
+        _lastPlayerColumn      = -1;
+        _lastAIColumn          = -1;
+        _lockedColumn          = -1;
+        _prevPlayerCol         = -1;
+        _playerStreak          = 0;
+        _prevAICol             = -1;
+        _aiStreak              = 0;
+        _quitOrDoubleColumn    = -1;
 
         for (int i = 0; i < 2 && pool.Count > 0; i++)
         {
@@ -89,6 +93,10 @@ public class MatchModifierManager : MonoBehaviour
             // special LockedColumn logic
             if (mod.type == MatchModifierDefinition.ModifierType.LockedColumn && _gridManager != null)
                 _lockedColumn = Random.Range(0, _gridManager.cols);
+
+            // special QuitOrDouble logic
+            if (mod.type == MatchModifierDefinition.ModifierType.QuitOrDouble && _gridManager != null)
+                _quitOrDoubleColumn = Random.Range(0, _gridManager.cols);
         }
     }
 
@@ -115,14 +123,14 @@ public class MatchModifierManager : MonoBehaviour
     /// </summary>
     public void OnTackle(GameManager.Actor actor)
     {
-        // 1) reset momentum-limit counter
+        // reset momentum
         _consecutiveAdvances = 0;
 
-        // 2) reset burned-column state entirely
+        // reset burned-column
         _lastPlayerColumn = -1;
         _lastAIColumn     = -1;
 
-        // 3) if Column Loyalty is active, reset *that* actor's streak
+        // reset loyalty streak
         if (HasModifier(MatchModifierDefinition.ModifierType.ColumnLoyalty))
         {
             if (actor == GameManager.Actor.Player)
@@ -217,11 +225,15 @@ public class MatchModifierManager : MonoBehaviour
             ? _fastLaneColumn
             : -1;
 
-    /// <summary>
-    /// Override the fast-lane column (e.g. pick from _allowedColumns in GameManager).
-    /// </summary>
     public void SetFastLaneColumn(int col)
-    {
-        _fastLaneColumn = col;
-    }
+        => _fastLaneColumn = col;
+
+    // --- Quit or Double state accessors ---
+    public int GetQuitOrDoubleColumn()
+        => HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble)
+            ? _quitOrDoubleColumn
+            : -1;
+
+    public void SetQuitOrDoubleColumn(int col)
+        => _quitOrDoubleColumn = col;
 }

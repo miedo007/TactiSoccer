@@ -16,7 +16,8 @@ public class MatchModifierDefinition : ScriptableObject
         MirrorClash,
         LockedColumn,
         ColumnLoyalty,
-        FlightPath
+        FlightPath,
+        QuitOrDouble 
         // (you can add more here later)
     }
 }

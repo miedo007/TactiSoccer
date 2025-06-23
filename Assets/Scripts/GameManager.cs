@@ -251,7 +251,7 @@ public class GameManager : MonoBehaviour
     _inputLocked = false;
     int targetRow = possession == Actor.Player ? ballRow + 1 : ballRow - 1;
 
-    // 1) Highlight allowed row cells and populate _allowedColumns
+    // 1) Highlight allowed row cells and fill _allowedColumns
     if (possession == Actor.Player)
     {
         phase = Phase.PlayerAttack;
@@ -264,7 +264,7 @@ public class GameManager : MonoBehaviour
         attackChoice = AIAttackGuess();
     }
 
-    // 2) If Flight Path is on, choose fast-lane from those same allowed columns
+    // 2) If Flight Path is on, pick its column from allowed
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath)
         && _allowedColumns.Count > 0)
@@ -273,17 +273,34 @@ public class GameManager : MonoBehaviour
         matchModifierManager.SetFastLaneColumn(fastFromAllowed);
     }
 
-    // 3) Now highlight the fast-lane cell (if any)
+    // 2.5) If Quit-or-Double is on, pick its column from allowed (when restricting to adjacent)
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble))
+    {
+        int qodCol;
+        if (restrictToAdjacent && _allowedColumns.Count > 0)
+        {
+            // only pick from the cells you actually highlighted
+            qodCol = _allowedColumns[Random.Range(0, _allowedColumns.Count)];
+        }
+        else
+        {
+            // otherwise any column is fine
+            qodCol = Random.Range(0, gridManager.cols);
+        }
+        matchModifierManager.SetQuitOrDoubleColumn(qodCol);
+    }
+
+    // 3) Highlight fast-lane cell (cyan)…
     int fastCol = matchModifierManager.GetFastLaneColumn();
     if (fastCol >= 0 && targetRow >= 0 && targetRow < gridManager.rows)
     {
         var fastCell = gridManager.cells[targetRow, fastCol].GetComponent<Cell>();
         fastCell.Highlight(true);
-        var fastSr = fastCell.GetComponent<SpriteRenderer>();
-        fastSr.color = new Color(0f, 1f, 1f, 0.5f);
+        fastCell.GetComponent<SpriteRenderer>().color = new Color(0f, 1f, 1f, 0.5f);
     }
 
-    // 4) Highlight the locked column in red (if LockedColumn modifier is active)
+    // 4) Highlight locked-column cell (red)…
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn))
     {
@@ -291,13 +308,26 @@ public class GameManager : MonoBehaviour
         if (lockedCol >= 0 && targetRow >= 0 && targetRow < gridManager.rows)
         {
             var lockCell = gridManager.cells[targetRow, lockedCol].GetComponent<Cell>();
-            // pulse it too, so it gets the same animation
             lockCell.Highlight(true);
-            var lockSr = lockCell.GetComponent<SpriteRenderer>();
-            lockSr.color = new Color(1f, 0f, 0f, 0.5f);
+            lockCell.GetComponent<SpriteRenderer>().color = new Color(1f, 0f, 0f, 0.5f);
+        }
+    }
+
+    // 5) Finally, highlight your Quit-or-Double cell (magenta)…
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble))
+    {
+        int qodCol = matchModifierManager.GetQuitOrDoubleColumn();
+        if (qodCol >= 0 && targetRow >= 0 && targetRow < gridManager.rows)
+        {
+            var qodCell = gridManager.cells[targetRow, qodCol].GetComponent<Cell>();
+            qodCell.Highlight(true);
+            qodCell.GetComponent<SpriteRenderer>().color = new Color(1f, 0f, 1f, 0.5f);
         }
     }
 }
+
+
 
 
 
@@ -329,147 +359,176 @@ public class GameManager : MonoBehaviour
 
 
     private IEnumerator ResolveTurn(int targetRow)
+{
+    Actor attacker = possession;
+    bool tackle = (attackChoice == defendChoice);
+    int originalRow = ballRow;
+    int dir = (attacker == Actor.Player) ? +1 : -1;
+
+    // 1) Reveal picks
+    int playerPick = (possession == Actor.Player) ? attackChoice : defendChoice;
+    int aiPick     = (possession == Actor.Player) ? defendChoice : attackChoice;
+
+    if (revealMarkerPlayerPrefab != null)
     {
-        Actor attacker = possession;
-        bool tackle = attackChoice == defendChoice;
+        var pm = Instantiate(
+            revealMarkerPlayerPrefab,
+            gridManager.GetCellPosition(targetRow, playerPick),
+            Quaternion.identity
+        );
+        _revealMarkers.Add(pm);
+    }
+    yield return new WaitForSeconds(revealStaggerDelay);
 
-        // 1) Reveal picks
-        int playerPick = possession == Actor.Player ? attackChoice : defendChoice;
-        int aiPick = possession == Actor.Player ? defendChoice : attackChoice;
+    if (revealMarkerAIPrefab != null)
+    {
+        var am = Instantiate(
+            revealMarkerAIPrefab,
+            gridManager.GetCellPosition(targetRow, aiPick),
+            Quaternion.identity
+        );
+        _revealMarkers.Add(am);
+    }
+    yield return new WaitForSeconds(revealStaggerDelay);
+    ClearRevealMarkers();
 
-        if (revealMarkerPlayerPrefab != null)
+    // 2) Mirror Clash
+    if (!tackle
+        && enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MirrorClash)
+        && matchModifierManager.IsMirrorClash(attackChoice, defendChoice))
+    {
+        matchModifierManager.ApplyMirrorClash(ref ballRow, attacker);
+        ShowModifier("Mirror Clash! Ball moves back!", 2f);
+        yield return new WaitForSeconds(afterAnimDelay);
+        ClearHighlights();
+        yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
+        StartNewTurn();
+        yield break;
+    }
+
+    // 3) Momentum Limit
+    if (!tackle
+        && enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
+        && !matchModifierManager.CanAdvance())
+    {
+        tackle = true;
+        ShowModifier("Momentum Limit! Must be tackled!", 2f);
+        (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
+        matchModifierManager.OnTackle(attacker);
+    }
+
+    // 4) Tackle or Dribble
+    if (tackle)
+    {
+        // Quit-or-Double penalty: back 2 rows if you tackled on that special cell
+        if (enableModifiers
+            && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble)
+            && attackChoice == matchModifierManager.GetQuitOrDoubleColumn())
         {
-            var pm = Instantiate(
-                revealMarkerPlayerPrefab,
-                gridManager.GetCellPosition(targetRow, playerPick),
-                Quaternion.identity);
-            _revealMarkers.Add(pm);
-        }
-        yield return new WaitForSeconds(revealStaggerDelay);
-
-        if (revealMarkerAIPrefab != null)
-        {
-            var am = Instantiate(
-                revealMarkerAIPrefab,
-                gridManager.GetCellPosition(targetRow, aiPick),
-                Quaternion.identity);
-            _revealMarkers.Add(am);
-        }
-        yield return new WaitForSeconds(revealStaggerDelay);
-        ClearRevealMarkers();
-
-        // 2) Mirror Clash (modifier)
-        if (!tackle
-            && enableModifiers
-            && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MirrorClash)
-            && matchModifierManager.IsMirrorClash(attackChoice, defendChoice))
-        {
-            matchModifierManager.ApplyMirrorClash(ref ballRow, attacker);
-            ShowModifier("Mirror Clash! Ball moves back!", 2f);
-            yield return new WaitForSeconds(afterAnimDelay);
-            ClearHighlights();
-            yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
-            StartNewTurn();
-            yield break;
-        }
-
-        // 3) Momentum Limit (modifier)
-        if (!tackle
-            && enableModifiers
-            && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
-            && !matchModifierManager.CanAdvance())
-        {
-            tackle = true;
-            ShowModifier("Momentum Limit! Must be tackled!", 2f);
-            (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
-            matchModifierManager.OnTackle(attacker);
-        }
-
-        // 4) Tackle or Dribble (gameplay)
-        if (tackle)
-        {
-            ballRow = targetRow;
-            ballCol = attackChoice;
-            yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
-
-            ShowMessage(attacker == Actor.Player ? "Tackled!" : "Tackle!", 2f);
-            (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
-            if (enableModifiers) matchModifierManager.OnTackle(attacker);
-
-            var loserPrefab = attacker == Actor.Player ? aiLosePrefab : playerLosePrefab;
-            var loser = Instantiate(loserPrefab, gridManager.GetCellPosition(ballRow, ballCol), Quaternion.identity);
-            StartCoroutine(ThrowOffScreen(loser, attacker));
-
-            possession = attacker == Actor.Player ? Actor.AI : Actor.Player;
-            SpawnCharacter();
-            StartNewTurn();
-            yield break;
+            ballRow = Mathf.Clamp(originalRow - 2 * dir, 0, gridManager.rows - 1);
         }
         else
         {
-            if (enableModifiers) matchModifierManager.OnAdvance();
-            ShowMessage(attacker == Actor.Player ? "Dribble!" : "Dribbled!", 2f);
-            (attacker == Actor.Player ? feedbackPlayerAdvance : feedbackOpponentAdvance)?.PlayFeedbacks();
-            pot += bonusPerAdvance;
-            UpdatePotUI();
+            ballRow = targetRow;
         }
-
-        // 5) Column Loyalty (modifier)
-        int loyaltyBoost = 0;
-        if (!tackle
-            && enableModifiers
-            && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.ColumnLoyalty))
-        {
-            loyaltyBoost = matchModifierManager.GetLoyaltyBoost(attacker, attackChoice);
-            if (loyaltyBoost > 0)
-                ShowModifier("Column Loyalty! Extra row!", 2f);
-        }
-
-        // 6) Flight Path boost (modifier)
-        int flightBoost = 0;
-        if (!tackle
-            && enableModifiers
-            && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath)
-            && attackChoice == matchModifierManager.GetFastLaneColumn())
-        {
-            flightBoost = 1;
-            ShowModifier("Flight Path! Double Advance", 2f);
-        }
-
-        // 7) Burned Column update
-        if (enableModifiers)
-            matchModifierManager.SetLastUsedColumn(attacker, attackChoice);
-
-        yield return new WaitForSeconds(tackleAnimDuration);
-        ClearHighlights();
-
-        // 8) Advance with boosts
-        {
-            int dir = attacker == Actor.Player ? +1 : -1;
-            int totalBoost = loyaltyBoost + flightBoost;
-            int newRow = ballRow + dir + (totalBoost * dir);
-            ballRow = Mathf.Clamp(newRow, 0, gridManager.rows - 1);
-            ballCol = attackChoice;
-        }
-
+        ballCol = attackChoice;
         yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
 
-        if (enablePowerUps)
-            CheckForPickups();
+        ShowMessage(attacker == Actor.Player ? "Tackled!" : "Tackle!", 2f);
+        (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
+        if (enableModifiers) matchModifierManager.OnTackle(attacker);
 
-        // 9) Check goal
-        bool goal = !tackle &&
-                    ((attacker == Actor.Player && ballRow == gridManager.rows - 1) ||
-                     (attacker == Actor.AI && ballRow == 0));
-        if (goal)
-        {
-            StartCoroutine(PenaltySequence(attacker));
-            yield break;
-        }
+        var loserPrefab = (attacker == Actor.Player) ? aiLosePrefab : playerLosePrefab;
+        var loser = Instantiate(
+            loserPrefab,
+            gridManager.GetCellPosition(ballRow, ballCol),
+            Quaternion.identity
+        );
+        StartCoroutine(ThrowOffScreen(loser, attacker));
 
-        // 10) Next turn
+        possession = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
+        SpawnCharacter();
         StartNewTurn();
+        yield break;
     }
+    else
+    {
+        if (enableModifiers) matchModifierManager.OnAdvance();
+        ShowMessage(attacker == Actor.Player ? "Dribble!" : "Dribbled!", 2f);
+        (attacker == Actor.Player ? feedbackPlayerAdvance : feedbackOpponentAdvance)?.PlayFeedbacks();
+        pot += bonusPerAdvance;
+        UpdatePotUI();
+    }
+
+    // 5) Column Loyalty
+    int loyaltyBoost = 0;
+    if (!tackle
+        && enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.ColumnLoyalty))
+    {
+        loyaltyBoost = matchModifierManager.GetLoyaltyBoost(attacker, attackChoice);
+        if (loyaltyBoost > 0)
+            ShowModifier("Column Loyalty! Extra row!", 2f);
+    }
+
+    // 6) Flight Path
+    int flightBoost = 0;
+    if (!tackle
+        && enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath)
+        && attackChoice == matchModifierManager.GetFastLaneColumn())
+    {
+        flightBoost = 1;
+        ShowModifier("Flight Path! Double Advance", 2f);
+    }
+
+    // 7) Quit-or-Double boost
+    int quitBoost = 0;
+    if (!tackle
+        && enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble)
+        && attackChoice == matchModifierManager.GetQuitOrDoubleColumn())
+    {
+        quitBoost = 1;
+        ShowModifier("Quit or Double! ×2 rows!", 2f);
+    }
+
+    // 8) Burned Column update
+    if (enableModifiers)
+        matchModifierManager.SetLastUsedColumn(attacker, attackChoice);
+
+    yield return new WaitForSeconds(tackleAnimDuration);
+    ClearHighlights();
+
+    // 9) Advance with all boosts
+    {
+        int totalBoost = loyaltyBoost + flightBoost + quitBoost;
+        int newRow = ballRow + dir + (totalBoost * dir);
+        ballRow = Mathf.Clamp(newRow, 0, gridManager.rows - 1);
+        ballCol = attackChoice;
+    }
+
+    yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
+
+    if (enablePowerUps)
+        CheckForPickups();
+
+    // 10) Check for goal
+    bool goal = !tackle &&
+                ((attacker == Actor.Player && ballRow == gridManager.rows - 1) ||
+                 (attacker == Actor.AI     && ballRow == 0));
+    if (goal)
+    {
+        StartCoroutine(PenaltySequence(attacker));
+        yield break;
+    }
+
+    // 11) Next turn
+    StartNewTurn();
+}
+
 
     private void Update()
     {
