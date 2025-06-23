@@ -211,7 +211,7 @@ public class GameManager : MonoBehaviour
         pot = currentBet * 2;
         UpdatePotUI();
 
-        ShowMessage(possession == Actor.Player ? "You Kick-Off" : "Opponent Kick-Off", 1.5f);
+        ShowMessage(possession == Actor.Player ? "You Kick-Off" : "Opponent Kick-Off", 4f);
 
         betPanel.SetActive(false);
         bet5Button.gameObject.SetActive(false);
@@ -319,7 +319,7 @@ public class GameManager : MonoBehaviour
             && matchModifierManager.IsMirrorClash(attackChoice, defendChoice))
         {
             matchModifierManager.ApplyMirrorClash(ref ballRow, attacker);
-            ShowModifier("Mirror Clash! Ball moves back!", 1f);
+            ShowModifier("Mirror Clash! Ball moves back!", 2f);
             yield return new WaitForSeconds(afterAnimDelay);
             ClearHighlights();
             yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
@@ -334,7 +334,7 @@ public class GameManager : MonoBehaviour
             && !matchModifierManager.CanAdvance())
         {
             tackle = true;
-            ShowModifier("Momentum Limit! Must be tackled!", 1f);
+            ShowModifier("Momentum Limit! Must be tackled!", 2f);
             (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
             matchModifierManager.OnTackle();
         }
@@ -346,7 +346,7 @@ public class GameManager : MonoBehaviour
             ballCol = attackChoice;
             yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
 
-            ShowMessage(attacker == Actor.Player ? "Tackled!" : "Tackle!", 1f);
+            ShowMessage(attacker == Actor.Player ? "Tackled!" : "Tackle!", 2f);
             (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
             if (enableModifiers) matchModifierManager.OnTackle();
 
@@ -362,7 +362,7 @@ public class GameManager : MonoBehaviour
         else
         {
             if (enableModifiers) matchModifierManager.OnAdvance();
-            ShowMessage(attacker == Actor.Player ? "Dribble!" : "Dribbled!", 1f);
+            ShowMessage(attacker == Actor.Player ? "Dribble!" : "Dribbled!", 2f);
             (attacker == Actor.Player ? feedbackPlayerAdvance : feedbackOpponentAdvance)?.PlayFeedbacks();
             pot += bonusPerAdvance;
             UpdatePotUI();
@@ -376,7 +376,7 @@ public class GameManager : MonoBehaviour
         {
             loyaltyBoost = matchModifierManager.GetLoyaltyBoost(attacker, attackChoice);
             if (loyaltyBoost > 0)
-                ShowModifier("Column Loyalty! Extra row!", 1f);
+                ShowModifier("Column Loyalty! Extra row!", 2f);
         }
 
         // 6) Flight Path boost (modifier)
@@ -387,7 +387,7 @@ public class GameManager : MonoBehaviour
             && attackChoice == matchModifierManager.GetFastLaneColumn())
         {
             flightBoost = 1;
-            ShowModifier("Flight Path! Double Advance", 1f);
+            ShowModifier("Flight Path! Double Advance", 2f);
         }
 
         // 7) Burned Column update
@@ -564,7 +564,7 @@ public class GameManager : MonoBehaviour
         bool saved = penaltyAttackChoice == penaltyDefendChoice;
         if (saved)
         {
-            ShowModifier(attacker == Actor.Player ? "Countered" : "Saved", 1f);
+            ShowModifier(attacker == Actor.Player ? "Countered" : "Saved", 2f);
             (attacker == Actor.Player ? feedbackPenaltyCounter : feedbackPenaltySaved)?.PlayFeedbacks();
             possession = attacker == Actor.Player ? Actor.AI : Actor.Player;
 
@@ -582,13 +582,13 @@ public class GameManager : MonoBehaviour
             {
                 playerGold += pot;
                 UpdateGoldUI();
-                ShowMessage("GOAAAAAL! You Win!", 2f);
+                ShowMessage("GOAAAAAL! You Win!", 3f);
                 feedbackGoalForPlayer?.PlayFeedbacks();
                 feedbackMatchWin?.PlayFeedbacks();
             }
             else
             {
-                ShowMessage("GOAAAAAL! You Lose!", 2f);
+                ShowMessage("GOAAAAAL! You Lose!", 3f);
                 feedbackGoalAgainst?.PlayFeedbacks();
                 feedbackMatchLose?.PlayFeedbacks();
             }
@@ -654,8 +654,8 @@ public class GameManager : MonoBehaviour
 
     private int AI_DefenseGuess() => Random.Range(0, gridManager.cols);
 
-    private void UpdatePotUI() => potText.text = $"Pot: {pot}g";
-    private void UpdateGoldUI() => goldText.text = $"Gold: {playerGold}g";
+    private void UpdatePotUI() => potText.text = $"Pot: {pot}";
+    private void UpdateGoldUI() => goldText.text = $"Gold: {playerGold}";
 
     private void EndMatch()
     {
