@@ -204,4 +204,11 @@ public class MatchModifierManager : MonoBehaviour
             ? _fastLaneColumn
             : -1;
     }
+     /// <summary>
+    /// Override the fast-lane column (e.g. pick from _allowedColumns in GameManager).
+    /// </summary>
+    public void SetFastLaneColumn(int col)
+    {
+        _fastLaneColumn = col;
+    }
 }

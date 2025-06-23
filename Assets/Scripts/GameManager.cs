@@ -227,40 +227,43 @@ public class GameManager : MonoBehaviour
         StartNewTurn();
     }
 
-    void StartNewTurn()
+   void StartNewTurn()
+{
+    int targetRow = possession == Actor.Player ? ballRow + 1 : ballRow - 1;
+
+    // 1) Highlight allowed row cells and populate _allowedColumns
+    if (possession == Actor.Player)
     {
-        // Pick a fast-lane each turn
-        if (enableModifiers
-            && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath))
-        {
-            matchModifierManager.PickFastLaneColumn();
-        }
-
-        int targetRow = possession == Actor.Player ? ballRow + 1 : ballRow - 1;
-
-        // Highlight allowed row cells
-        if (possession == Actor.Player)
-        {
-            phase = Phase.PlayerAttack;
-            HighlightRow(targetRow, Actor.Player);
-        }
-        else
-        {
-            phase = Phase.AwaitingDefense;
-            HighlightRow(targetRow, Actor.AI);
-            attackChoice = AIAttackGuess();
-        }
-
-        // Always highlight the fast-lane cell
-        int fastCol = matchModifierManager.GetFastLaneColumn();
-        if (fastCol >= 0 && targetRow >= 0 && targetRow < gridManager.rows)
-        {
-            var cell = gridManager.cells[targetRow, fastCol].GetComponent<Cell>();
-            cell.Highlight(true);
-            var sr = cell.GetComponent<SpriteRenderer>();
-            sr.color = new Color(0f, 1f, 1f, 0.5f);
-        }
+        phase = Phase.PlayerAttack;
+        HighlightRow(targetRow, Actor.Player);
     }
+    else
+    {
+        phase = Phase.AwaitingDefense;
+        HighlightRow(targetRow, Actor.AI);
+        attackChoice = AIAttackGuess();
+    }
+
+    // 2) If Flight Path is on, choose fast-lane from those same allowed columns
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath)
+        && _allowedColumns.Count > 0)
+    {
+        int fastFromAllowed = _allowedColumns[Random.Range(0, _allowedColumns.Count)];
+        matchModifierManager.SetFastLaneColumn(fastFromAllowed);
+    }
+
+    // 3) Now highlight the fast-lane cell (if any)
+    int fastCol = matchModifierManager.GetFastLaneColumn();
+    if (fastCol >= 0 && targetRow >= 0 && targetRow < gridManager.rows)
+    {
+        var cell = gridManager.cells[targetRow, fastCol].GetComponent<Cell>();
+        cell.Highlight(true);
+        var sr = cell.GetComponent<SpriteRenderer>();
+        sr.color = new Color(0f, 1f, 1f, 0.5f);
+    }
+}
+
 
     public void OnCellClicked(int r, int c)
     {
