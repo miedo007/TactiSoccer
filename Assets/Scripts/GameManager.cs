@@ -257,12 +257,28 @@ public class GameManager : MonoBehaviour
     int fastCol = matchModifierManager.GetFastLaneColumn();
     if (fastCol >= 0 && targetRow >= 0 && targetRow < gridManager.rows)
     {
-        var cell = gridManager.cells[targetRow, fastCol].GetComponent<Cell>();
-        cell.Highlight(true);
-        var sr = cell.GetComponent<SpriteRenderer>();
-        sr.color = new Color(0f, 1f, 1f, 0.5f);
+        var fastCell = gridManager.cells[targetRow, fastCol].GetComponent<Cell>();
+        fastCell.Highlight(true);
+        var fastSr = fastCell.GetComponent<SpriteRenderer>();
+        fastSr.color = new Color(0f, 1f, 1f, 0.5f);
+    }
+
+    // 4) Highlight the locked column in red (if LockedColumn modifier is active)
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn))
+    {
+        int lockedCol = matchModifierManager.GetLockedColumn();
+        if (lockedCol >= 0 && targetRow >= 0 && targetRow < gridManager.rows)
+        {
+            var lockCell = gridManager.cells[targetRow, lockedCol].GetComponent<Cell>();
+            // pulse it too, so it gets the same animation
+            lockCell.Highlight(true);
+            var lockSr = lockCell.GetComponent<SpriteRenderer>();
+            lockSr.color = new Color(1f, 0f, 0f, 0.5f);
+        }
     }
 }
+
 
 
     public void OnCellClicked(int r, int c)
