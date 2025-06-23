@@ -200,7 +200,7 @@ Transform:
   m_GameObject: {fileID: 16400739}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -2.29, z: 0}
+  m_LocalPosition: {x: 0, y: -2.08, z: 0}
   m_LocalScale: {x: 0.73458314, y: 0.73458314, z: 0.73458314}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1088,7 +1088,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -375, y: -1065}
+  m_AnchoredPosition: {x: -375, y: -1037}
   m_SizeDelta: {x: 250, y: 80}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &303882812
@@ -1234,7 +1234,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 7, y: -1065}
+  m_AnchoredPosition: {x: 7, y: -1037}
   m_SizeDelta: {x: 250, y: 80}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &339014709
@@ -1388,11 +1388,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   allModifiers:
-  - {fileID: 11400000, guid: aa79bc9f4afea0346b41b30a71f9126f, type: 2}
   - {fileID: 11400000, guid: e3bd8075eada1114981a27079a86992e, type: 2}
   - {fileID: 11400000, guid: 0c384f1765087fd47bd057fb13f445d4, type: 2}
-  - {fileID: 11400000, guid: c56f76b35d03b7948b349a5b35197bff, type: 2}
-  - {fileID: 11400000, guid: 1d5cb588663dbcb4baea53425b1ddfb3, type: 2}
   activeModifiers: []
 --- !u!1 &435900001
 GameObject:
@@ -2095,7 +2092,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 372, y: -1065}
+  m_AnchoredPosition: {x: 372, y: -1037}
   m_SizeDelta: {x: 250, y: 80}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &615902009
@@ -4058,12 +4055,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   cellPrefab: {fileID: 3749089453700557494, guid: c3f85dd7396d9ba4dad8cafe9ef69c38, type: 3}
-  rows: 10
+  rows: 11
   cols: 5
   cellSize: 0.5
   columnSpacing: 0.5
   rowSpacing: 0.15
-  gridOriginOffset: {x: 0, y: -2.5}
+  gridOriginOffset: {x: 0, y: -2}
 --- !u!4 &961735194
 Transform:
   m_ObjectHideFlags: 0
