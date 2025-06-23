@@ -129,6 +129,23 @@ public class GameManager : MonoBehaviour
     private List<int> _allowedColumns = new List<int>();
     private List<GameObject> _revealMarkers = new List<GameObject>();
 
+    // ——— NEW: map each grid‐column to whichever buttons you want enabled ———
+    [System.Serializable]
+    public struct PenaltyColumnMapping
+    {
+        [Tooltip("Grid column you attacked from (0 = leftmost)")]
+        public int columnIndex;
+        [Tooltip("Drag in the penalty Buttons you want enabled for that column")]
+        public Button[] allowedPenaltyButtons;
+    }
+
+    [Header("Penalty → column-to-button mappings")]
+    [Tooltip("For each mapping, set columnIndex and drop in the Buttons that should be interactable")]
+    public PenaltyColumnMapping[] penaltyColumnMappings;
+
+    // … the rest of your GameManager follows unchanged …
+
+
     private void ClearFieldPowerUps()
     {
         var pickups = Object.FindObjectsByType<PowerUpPickup>(FindObjectsSortMode.None);
@@ -531,86 +548,114 @@ public class GameManager : MonoBehaviour
         Destroy(loser);
     }
 
-    private IEnumerator PenaltySequence(Actor attacker)
+private IEnumerator PenaltySequence(Actor attacker)
 {
     penaltyAttacker = attacker;
     penaltyChoiceMade = false;
     penaltyAttackChoice = penaltyDefendChoice = -1;
+
+    // bring up the panel & disable normal grid input
     penaltyPanel.SetActive(true);
     DisableGrid();
 
+    // reset ball & keeper visuals
     penaltyBall.anchoredPosition = penaltyBallStartPos;
-    penaltyBall.localScale = penaltyBallStartScale;
+    penaltyBall.localScale       = penaltyBallStartScale;
     penaltyBall.gameObject.SetActive(true);
-
-    goalkeeperImage.sprite = attacker == Actor.Player ? aiGKIdleSprite : playerGKIdleSprite;
+    goalkeeperImage.sprite       = (attacker == Actor.Player) ? aiGKIdleSprite : playerGKIdleSprite;
     goalkeeperImage.rectTransform.anchoredPosition = goalkeeperIdleAnchor.anchoredPosition;
-    goalkeeperImage.rectTransform.localScale = goalkeeperBaseScale;
+    goalkeeperImage.rectTransform.localScale       = goalkeeperBaseScale;
     goalkeeperImage.gameObject.SetActive(true);
 
-    foreach (var btn in penaltyButtons)
+    // — 1) find the mapping for the column we attacked from —
+    var mapping = penaltyColumnMappings
+        .FirstOrDefault(m => m.columnIndex == ballCol);
+
+    // build a list of button-indices we want to enable
+    var allowedIndices = new List<int>();
+    if (mapping.allowedPenaltyButtons != null && mapping.allowedPenaltyButtons.Length > 0)
     {
-        btn.interactable = true;
-        btn.GetComponent<Image>().color = Color.white;
+        foreach (var btn in mapping.allowedPenaltyButtons)
+        {
+            int idx = System.Array.IndexOf(penaltyButtons, btn);
+            if (idx >= 0) allowedIndices.Add(idx);
+        }
+    }
+    // fallback to “all” if none configured
+    if (allowedIndices.Count == 0)
+        allowedIndices = Enumerable.Range(0, penaltyButtons.Length).ToList();
+
+    // — 2) enable/disable & wire up each button —
+    for (int i = 0; i < penaltyButtons.Length; i++)
+    {
+        var btn = penaltyButtons[i];
+        var img = btn.GetComponent<Image>();
+
+        if (allowedIndices.Contains(i))
+        {
+            btn.interactable = true;
+            img.color       = Color.white;
+        }
+        else
+        {
+            btn.interactable = false;
+            img.color        = new Color(1f, 1f, 1f, 0.3f);
+        }
+
         btn.onClick.RemoveAllListeners();
-        int idx = System.Array.IndexOf(penaltyButtons, btn);
+        int idx = i;
         btn.onClick.AddListener(() => OnPenaltyButton(idx));
     }
 
+    // — 3) AI picks from those same indices —
     if (attacker == Actor.Player)
-        penaltyDefendChoice = Random.Range(0, penaltyButtons.Length);
+        penaltyDefendChoice = allowedIndices[Random.Range(0, allowedIndices.Count)];
     else
-        penaltyAttackChoice = Random.Range(0, penaltyButtons.Length);
+        penaltyAttackChoice = allowedIndices[Random.Range(0, allowedIndices.Count)];
 
-    while (!penaltyChoiceMade) yield return null;
+    // wait for player/AI choice…
+    while (!penaltyChoiceMade)
+        yield return null;
 
-    var shoot = penaltyButtons[penaltyAttackChoice]
-        .GetComponent<RectTransform>().anchoredPosition;
-    var defPos = penaltyButtons[penaltyDefendChoice]
-        .GetComponent<RectTransform>().anchoredPosition;
-    var idle = goalkeeperIdleAnchor.anchoredPosition;
+    // …then the rest of your animation code unchanged…
+    var shootPos = penaltyButtons[penaltyAttackChoice].GetComponent<RectTransform>().anchoredPosition;
+    var defPos   = penaltyButtons[penaltyDefendChoice].GetComponent<RectTransform>().anchoredPosition;
+    var idlePos  = goalkeeperIdleAnchor.anchoredPosition;
+
+    // flip keeper
     var flipScale = goalkeeperBaseScale;
-    flipScale.x = defPos.x < idle.x 
-        ? -Mathf.Abs(flipScale.x) 
+    flipScale.x = defPos.x < idlePos.x
+        ? -Mathf.Abs(flipScale.x)
         : Mathf.Abs(flipScale.x);
     goalkeeperImage.rectTransform.localScale = flipScale;
-    goalkeeperImage.sprite = attacker == Actor.Player 
-        ? aiGKJumpSprite 
-        : playerGKJumpSprite;
+    goalkeeperImage.sprite = (attacker == Actor.Player) ? aiGKJumpSprite : playerGKJumpSprite;
 
-    float e2 = 0f;
-    while (e2 < penaltyAnimDuration)
+    float t = 0f;
+    while (t < penaltyAnimDuration)
     {
-        e2 += Time.deltaTime;
-        float tB = Mathf.Clamp01(e2 / penaltyAnimDuration);
-        float tK = Mathf.Clamp01(e2 / goalkeeperJumpDuration);
-
-        penaltyBall.anchoredPosition = Vector2.Lerp(
-            penaltyBallStartPos, shoot, tB);
-        penaltyBall.localScale = Vector3.Lerp(
-            penaltyBallStartScale, penaltyBallEndScale, tB);
-        goalkeeperImage.rectTransform.anchoredPosition = Vector2.Lerp(
-            idle, defPos, tK);
+        t += Time.deltaTime;
+        float p = Mathf.Clamp01(t / penaltyAnimDuration);
+        penaltyBall.anchoredPosition = Vector2.Lerp(penaltyBallStartPos, shootPos, p);
+        penaltyBall.localScale       = Vector3.Lerp(penaltyBallStartScale, penaltyBallEndScale, p);
+        float k = Mathf.Clamp01(t / goalkeeperJumpDuration);
+        goalkeeperImage.rectTransform.anchoredPosition = Vector2.Lerp(idlePos, defPos, k);
         yield return null;
     }
 
     yield return new WaitForSeconds(afterAnimDelay);
 
+    // color results
     penaltyButtons[penaltyAttackChoice].GetComponent<Image>().color = Color.green;
-    penaltyButtons[penaltyDefendChoice].GetComponent<Image>().color = Color.red;
+    penaltyButtons[penaltyDefendChoice].GetComponent<Image>().color   = Color.red;
 
     bool saved = (penaltyAttackChoice == penaltyDefendChoice);
     if (saved)
     {
         ShowModifier(attacker == Actor.Player ? "Countered" : "Saved", 2f);
-        (attacker == Actor.Player 
-            ? feedbackPenaltyCounter 
-            : feedbackPenaltySaved
-        )?.PlayFeedbacks();
-        possession = attacker == Actor.Player ? Actor.AI : Actor.Player;
+        (attacker == Actor.Player ? feedbackPenaltyCounter : feedbackPenaltySaved)?.PlayFeedbacks();
+        possession = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
 
-        // **unlock input before next turn**
-        _inputLocked = false;
+        _inputLocked = false;  // unlock
 
         penaltyBall.gameObject.SetActive(false);
         penaltyPanel.SetActive(false);
@@ -641,12 +686,11 @@ public class GameManager : MonoBehaviour
         penaltyPanel.SetActive(false);
         goalkeeperImage.gameObject.SetActive(false);
 
-        // **unlock input before ending match**
-        _inputLocked = false;
-
+        _inputLocked = false;  // unlock
         EndMatch();
     }
 }
+
 
 
     public void OnPenaltyButton(int idx)

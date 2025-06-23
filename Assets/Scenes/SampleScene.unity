@@ -628,6 +628,32 @@ MonoBehaviour:
   restrictToAdjacent: 0
   enablePowerUps: 0
   enableModifiers: 1
+  penaltyColumnMappings:
+  - columnIndex: 0
+    allowedPenaltyButtons:
+    - {fileID: 1434922722}
+    - {fileID: 2079181847}
+  - columnIndex: 1
+    allowedPenaltyButtons:
+    - {fileID: 1434922722}
+    - {fileID: 2079181847}
+    - {fileID: 121324766}
+  - columnIndex: 2
+    allowedPenaltyButtons:
+    - {fileID: 1434922722}
+    - {fileID: 2079181847}
+    - {fileID: 121324766}
+    - {fileID: 686110621}
+    - {fileID: 476552958}
+  - columnIndex: 3
+    allowedPenaltyButtons:
+    - {fileID: 121324766}
+    - {fileID: 686110621}
+    - {fileID: 476552958}
+  - columnIndex: 4
+    allowedPenaltyButtons:
+    - {fileID: 686110621}
+    - {fileID: 476552958}
 --- !u!4 &161872744
 Transform:
   m_ObjectHideFlags: 0
@@ -1389,11 +1415,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   allModifiers:
   - {fileID: 11400000, guid: e3bd8075eada1114981a27079a86992e, type: 2}
-  - {fileID: 11400000, guid: 0c384f1765087fd47bd057fb13f445d4, type: 2}
-  - {fileID: 11400000, guid: aa79bc9f4afea0346b41b30a71f9126f, type: 2}
-  - {fileID: 11400000, guid: 372cf088c1a11374f80de2be57b1c43e, type: 2}
-  - {fileID: 11400000, guid: c56f76b35d03b7948b349a5b35197bff, type: 2}
-  - {fileID: 11400000, guid: 1d5cb588663dbcb4baea53425b1ddfb3, type: 2}
   activeModifiers: []
 --- !u!1 &435900001
 GameObject:
@@ -6872,7 +6893,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1736024965
 RectTransform:
   m_ObjectHideFlags: 0
