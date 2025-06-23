@@ -116,9 +116,14 @@ public class MatchModifierManager : MonoBehaviour
     }
 
     public void OnTackle()
-    {
-        _consecutiveAdvances = 0;
-    }
+   {
+    // reset momentum
+    _consecutiveAdvances = 0;
+
+    // reset burned-column state so no column stays burned after a tackle
+    _lastPlayerColumn = -1;
+    _lastAIColumn     = -1;
+}
 
     // --- Burned Column hooks ---
     public void SetLastUsedColumn(GameManager.Actor actor, int column)

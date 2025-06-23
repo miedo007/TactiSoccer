@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: BurnedColumn
   m_EditorClassIdentifier: 
   modifierName: Burned Column
-  description: "After you pick a column, you can\u2019t pick it on your next turn."
+  description: "After you pick a column, you can\u2019t pick it on your next turn.
+    It reset after a tackle."
   icon: {fileID: -8236111372781299411, guid: a9e820c77e651594c9130319d66be1f0, type: 3}
   type: 1
