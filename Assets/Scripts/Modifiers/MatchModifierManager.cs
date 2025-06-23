@@ -12,21 +12,21 @@ public class MatchModifierManager : MonoBehaviour
     // --- Define incompatible pairs here ---
     // If you pick A, any listed here will be removed from consideration.
     private static readonly Dictionary<
-    MatchModifierDefinition.ModifierType,
-    List<MatchModifierDefinition.ModifierType>
-> incompatibleMap = new Dictionary<MatchModifierDefinition.ModifierType, List<MatchModifierDefinition.ModifierType>>
-{
-    { MatchModifierDefinition.ModifierType.BurnedColumn,
-        new List<MatchModifierDefinition.ModifierType> {
-            MatchModifierDefinition.ModifierType.ColumnLoyalty
-        }
-    },
-    { MatchModifierDefinition.ModifierType.ColumnLoyalty,
-        new List<MatchModifierDefinition.ModifierType> {
-            MatchModifierDefinition.ModifierType.BurnedColumn
-        }
-    }
-};
+        MatchModifierDefinition.ModifierType,
+        List<MatchModifierDefinition.ModifierType>
+    > incompatibleMap = new Dictionary<MatchModifierDefinition.ModifierType, List<MatchModifierDefinition.ModifierType>>
+    {
+        { MatchModifierDefinition.ModifierType.BurnedColumn,
+            new List<MatchModifierDefinition.ModifierType> {
+                MatchModifierDefinition.ModifierType.ColumnLoyalty
+            }
+        },
+        { MatchModifierDefinition.ModifierType.ColumnLoyalty,
+            new List<MatchModifierDefinition.ModifierType> {
+                MatchModifierDefinition.ModifierType.BurnedColumn
+            }
+        },
+    };
 
     // --- Momentum Limit state ---
     private int _consecutiveAdvances = 0;
@@ -84,22 +84,16 @@ public class MatchModifierManager : MonoBehaviour
 
             // remove any incompatible modifiers
             if (incompatibleMap.TryGetValue(mod.type, out var badTypes))
-            {
                 pool.RemoveAll(m => badTypes.Contains(m.type));
-            }
 
             // special LockedColumn logic
             if (mod.type == MatchModifierDefinition.ModifierType.LockedColumn && _gridManager != null)
-            {
                 _lockedColumn = Random.Range(0, _gridManager.cols);
-            }
         }
     }
 
     public bool HasModifier(MatchModifierDefinition.ModifierType t)
-    {
-        return activeModifiers.Exists(m => m.type == t);
-    }
+        => activeModifiers.Exists(m => m.type == t);
 
     // --- Momentum Limit hooks ---
     public void OnAdvance()
@@ -115,15 +109,34 @@ public class MatchModifierManager : MonoBehaviour
         return true;
     }
 
-    public void OnTackle()
-   {
-    // reset momentum
-    _consecutiveAdvances = 0;
+    /// <summary>
+    /// Called when a tackle happens. Resets momentum, clears burned-column state,
+    /// and (if ColumnLoyalty is active) wipes out the loyalty streak for that actor.
+    /// </summary>
+    public void OnTackle(GameManager.Actor actor)
+    {
+        // 1) reset momentum-limit counter
+        _consecutiveAdvances = 0;
 
-    // reset burned-column state so no column stays burned after a tackle
-    _lastPlayerColumn = -1;
-    _lastAIColumn     = -1;
-}
+        // 2) reset burned-column state entirely
+        _lastPlayerColumn = -1;
+        _lastAIColumn     = -1;
+
+        // 3) if Column Loyalty is active, reset *that* actor's streak
+        if (HasModifier(MatchModifierDefinition.ModifierType.ColumnLoyalty))
+        {
+            if (actor == GameManager.Actor.Player)
+            {
+                _prevPlayerCol = -1;
+                _playerStreak  = 0;
+            }
+            else
+            {
+                _prevAICol = -1;
+                _aiStreak  = 0;
+            }
+        }
+    }
 
     // --- Burned Column hooks ---
     public void SetLastUsedColumn(GameManager.Actor actor, int column)
@@ -135,19 +148,15 @@ public class MatchModifierManager : MonoBehaviour
     }
 
     public int GetLastUsedColumn(GameManager.Actor actor)
-    {
-        return actor == GameManager.Actor.Player
+        => actor == GameManager.Actor.Player
             ? _lastPlayerColumn
             : _lastAIColumn;
-    }
 
     // --- Locked Column query ---
     public int GetLockedColumn()
-    {
-        return HasModifier(MatchModifierDefinition.ModifierType.LockedColumn)
+        => HasModifier(MatchModifierDefinition.ModifierType.LockedColumn)
             ? _lockedColumn
             : -1;
-    }
 
     // --- Mirror Clash hooks ---
     public bool IsMirrorClash(int attackCol, int defendCol)
@@ -204,12 +213,11 @@ public class MatchModifierManager : MonoBehaviour
     }
 
     public int GetFastLaneColumn()
-    {
-        return HasModifier(MatchModifierDefinition.ModifierType.FlightPath)
+        => HasModifier(MatchModifierDefinition.ModifierType.FlightPath)
             ? _fastLaneColumn
             : -1;
-    }
-     /// <summary>
+
+    /// <summary>
     /// Override the fast-lane column (e.g. pick from _allowedColumns in GameManager).
     /// </summary>
     public void SetFastLaneColumn(int col)

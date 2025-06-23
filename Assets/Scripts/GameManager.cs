@@ -382,7 +382,7 @@ public class GameManager : MonoBehaviour
             tackle = true;
             ShowModifier("Momentum Limit! Must be tackled!", 2f);
             (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
-            matchModifierManager.OnTackle();
+            matchModifierManager.OnTackle(attacker);
         }
 
         // 4) Tackle or Dribble (gameplay)
@@ -394,7 +394,7 @@ public class GameManager : MonoBehaviour
 
             ShowMessage(attacker == Actor.Player ? "Tackled!" : "Tackle!", 2f);
             (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
-            if (enableModifiers) matchModifierManager.OnTackle();
+            if (enableModifiers) matchModifierManager.OnTackle(attacker);
 
             var loserPrefab = attacker == Actor.Player ? aiLosePrefab : playerLosePrefab;
             var loser = Instantiate(loserPrefab, gridManager.GetCellPosition(ballRow, ballCol), Quaternion.identity);
