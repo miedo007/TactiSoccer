@@ -625,7 +625,7 @@ MonoBehaviour:
   rulesPanel: {fileID: 1572865869}
   rulesText: {fileID: 242679113}
   rulesButton: {fileID: 1062568476}
-  restrictToAdjacent: 0
+  restrictToAdjacent: 1
   enablePowerUps: 0
   enableModifiers: 1
   penaltyColumnMappings:
@@ -1414,7 +1414,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   allModifiers:
-  - {fileID: 11400000, guid: e3bd8075eada1114981a27079a86992e, type: 2}
+  - {fileID: 11400000, guid: 8a87c6132910e7f40aa207b246f9af78, type: 2}
   activeModifiers: []
 --- !u!1 &435900001
 GameObject:
@@ -6893,7 +6893,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1736024965
 RectTransform:
   m_ObjectHideFlags: 0
