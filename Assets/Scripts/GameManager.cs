@@ -96,6 +96,13 @@ public class GameManager : MonoBehaviour
     public TextMeshProUGUI resultText;    // “You Win!” / “You Lose!”
     public Button continueButton;         // “Continue” → back to MainMenu
 
+    [Header("Reward Settings")]
+    [Tooltip("How many coins the player paid to enter this match")]
+    public int entryFee = 5;
+
+    [Tooltip("Currency ID you use for coins")]
+    public string currencyId = "GOLD";
+
     [Header("Leaderboard")]
     [Tooltip("Remote‐config ID for your leaderboard")]
     public string leaderboardID = "highscore";
@@ -332,8 +339,6 @@ private void InitializeMatch()
         }
     }
 }
-
-
 
 
 
@@ -758,8 +763,6 @@ private IEnumerator PenaltySequence(Actor attacker)
 }
 
 
-
-
     public void OnPenaltyButton(int idx)
     {
         penaltyChoiceMade = true;
@@ -822,27 +825,58 @@ private IEnumerator PenaltySequence(Actor attacker)
     return Random.Range(0, gridManager.cols);
 }
 
-    private void UpdateGoldUI() => goldText.text = $"Gold: {playerGold}";
+        // -------------------------------------------------------
+    // UI Helpers
+    // -------------------------------------------------------
+    private void UpdateGoldUI()
+    {
+        int balance = CozyAPI.Instance.GetCurrencyValue(currencyId);
+        goldText.text = $"Gold: {balance}";
+    }
 
- private void EndMatch()
-{
-    DisableGrid();
 
-    // Show result based on the flag set in PenaltySequence
-    resultText.text = _playerWon ? "You Win!" : "You Lose!";
-    resultPopup.SetActive(true);
+    private void EndMatch()
+    {
+        DisableGrid();
 
-    continueButton.onClick.RemoveAllListeners();
-    continueButton.onClick.AddListener(() =>
-        SceneManager.LoadScene("MainMenu"));
-}
+        // 1) Submit to leaderboard
+        UpdateAndSubmitLeaderboardScore(_playerWon);
+
+        // 2) Show the result popup
+        resultText.text = _playerWon ? "You Win!" : "You Lose!";
+        resultPopup.SetActive(true);
+
+        // 3) Wire up Continue
+        continueButton.onClick.RemoveAllListeners();
+        continueButton.onClick.AddListener(OnContinuePressed);
+    }  // ← closes EndMatch()
+
+    /// <summary>
+    /// When the player taps Continue, await the cloud payout (if any), then return to main menu.
+    /// </summary>
+    private async void OnContinuePressed()
+    {
+        if (_playerWon)
+        {
+            try
+            {
+                await CozyAPI.Instance.GainCurrency(currencyId, entryFee * 2);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"Reward failed: {e.Message}");
+            }
+        }
+
+        SceneManager.LoadScene("MainMenu");
+    }
 
     public void OnRestart()
     {
         _inputLocked = false;
         messageText.text = "";
         modifierText.text = "";
-        possession = Random.value < 0.5f ? Actor.Player : Actor.AI;
+        possession = (Random.value < 0.5f) ? Actor.Player : Actor.AI;
         ballRow = gridManager.rows / 2;
         ballCol = gridManager.cols / 2;
 
@@ -853,9 +887,9 @@ private IEnumerator PenaltySequence(Actor attacker)
             btn.GetComponent<Image>().color = Color.white;
 
         SpawnCharacter();
-       
     }
 
+   
     private void DisableGrid()
     {
         foreach (var cellGO in gridManager.AllCells)
@@ -888,4 +922,5 @@ private IEnumerator PenaltySequence(Actor attacker)
             rulesText.text = sb.ToString();
         }
     }
-}
+
+} // ← final closing brace for GameManager

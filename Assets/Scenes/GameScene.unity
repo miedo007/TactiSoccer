@@ -623,6 +623,9 @@ MonoBehaviour:
   resultPopup: {fileID: 176201045}
   resultText: {fileID: 783755723}
   continueButton: {fileID: 1723126651}
+  entryFee: 5
+  currencyId: GOLD
+  leaderboardID: highscore
   penaltyColumnMappings:
   - columnIndex: 0
     allowedPenaltyButtons:
@@ -1064,7 +1067,6 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 0c384f1765087fd47bd057fb13f445d4, type: 2}
   - {fileID: 11400000, guid: 372cf088c1a11374f80de2be57b1c43e, type: 2}
   - {fileID: 11400000, guid: c56f76b35d03b7948b349a5b35197bff, type: 2}
-  - {fileID: 11400000, guid: 1d5cb588663dbcb4baea53425b1ddfb3, type: 2}
   activeModifiers: []
 --- !u!1 &455752727
 GameObject:
