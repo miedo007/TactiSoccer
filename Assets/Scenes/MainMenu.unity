@@ -182,7 +182,7 @@ MonoBehaviour:
   playButton: {fileID: 1720805164}
   errorText: {fileID: 1766071264}
   currencyId: GOLD
-  entryFee: 10
+  entryFee: 20
   gameSceneName: GameScene
 --- !u!1 &594628554
 GameObject:
@@ -462,7 +462,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 124149500601089735, guid: 630d720232fa9474291924fcb7acc064, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1001247387617168433, guid: 630d720232fa9474291924fcb7acc064, type: 3}
       propertyPath: m_IsActive
@@ -514,7 +514,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2765438808122211273, guid: 630d720232fa9474291924fcb7acc064, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 0
+      value: 524.8459
       objectReference: {fileID: 0}
     - target: {fileID: 2765438808122211273, guid: 630d720232fa9474291924fcb7acc064, type: 3}
       propertyPath: m_AnchoredPosition.y
@@ -861,8 +861,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -6, y: -137}
-  m_SizeDelta: {x: 463.37646, y: 75}
+  m_AnchoredPosition: {x: -8.528509, y: -137}
+  m_SizeDelta: {x: 468.4335, y: 75}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1553319620
 MonoBehaviour:

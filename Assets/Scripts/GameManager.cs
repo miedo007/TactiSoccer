@@ -7,6 +7,7 @@ using UnityEngine.InputSystem;       // ← for Touchscreen
 using TMPro;
 using MoreMountains.Feedbacks;
 using UnityEngine.SceneManagement;
+using CozyFramework;
 
 public class GameManager : MonoBehaviour
 {
@@ -90,10 +91,18 @@ public class GameManager : MonoBehaviour
     [Tooltip("Turn off to disable all match modifiers and their effects.")]
     public bool enableModifiers = true;
 
-       [Header("Result Popup")]
+    [Header("Result Popup")]
     public GameObject resultPopup;        // assign a simple panel with Text + Continue button
     public TextMeshProUGUI resultText;    // “You Win!” / “You Lose!”
     public Button continueButton;         // “Continue” → back to MainMenu
+
+    [Header("Leaderboard")]
+    [Tooltip("Remote‐config ID for your leaderboard")]
+    public string leaderboardID = "highscore";
+
+    // Keeps track of the player's cumulative score to submit
+    private int _leaderboardScore = 0;
+
 
     // private state
     private int playerGold;
@@ -148,6 +157,20 @@ public class GameManager : MonoBehaviour
             Destroy(pu.gameObject);
     }
 
+   /// <summary>
+    /// Adjusts the running leaderboard score by +10 (win) or –5 (lose), clamps ≥0,
+    /// then submits via the CozyLeaderboards API.
+    /// </summary>
+    private void UpdateAndSubmitLeaderboardScore(bool playerWon)
+    {
+        // 1) Adjust
+        int delta = playerWon ? +10 : -5;
+        _leaderboardScore = Mathf.Max(0, _leaderboardScore + delta);
+
+        // 2) Submit asynchronously
+        _ = CozyLeaderboards.Instance.AddScoreToLeaderboard(leaderboardID, _leaderboardScore);
+    }
+   
    void Start()
 {
     if (rulesButton != null && rulesPanel != null)
@@ -709,6 +732,8 @@ private IEnumerator PenaltySequence(Actor attacker)
     {
         // record result so EndMatch shows correct message
         _playerWon = (attacker == Actor.Player);
+         //  — NEW: update & submit leaderboard points —
+        UpdateAndSubmitLeaderboardScore(_playerWon);
 
         if (attacker == Actor.Player)
         {
