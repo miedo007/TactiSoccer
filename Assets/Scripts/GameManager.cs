@@ -707,6 +707,9 @@ private IEnumerator PenaltySequence(Actor attacker)
     }
     else
     {
+        // record result so EndMatch shows correct message
+        _playerWon = (attacker == Actor.Player);
+
         if (attacker == Actor.Player)
         {
             ShowMessage("GOAAAAAL! You Win!", 3f);
@@ -728,6 +731,7 @@ private IEnumerator PenaltySequence(Actor attacker)
         EndMatch();
     }
 }
+
 
 
 
