@@ -497,10 +497,9 @@ private void InitializeMatch()
     if (enablePowerUps)
         CheckForPickups();
 
-    // 10) Check for goal
-    bool goal = !tackle &&
-                ((attacker == Actor.Player && ballRow == gridManager.rows - 1) ||
-                 (attacker == Actor.AI     && ballRow == 0));
+    // 10) Check for goal (now triggers even if it was a tackle)
+    bool goal = (attacker == Actor.Player && ballRow == gridManager.rows - 1)
+             || (attacker == Actor.AI     && ballRow == 0);
     if (goal)
     {
         StartCoroutine(PenaltySequence(attacker));
