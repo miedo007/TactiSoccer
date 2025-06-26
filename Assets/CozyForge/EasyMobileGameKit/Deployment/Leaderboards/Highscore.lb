@@ -1,0 +1,9 @@
+{
+  "$schema": "https://ugs-config-schemas.unity3d.com/v1/leaderboards.schema.json",
+  "Name": "highscore",
+  "Id": "highscore",
+  "SortOrder": "desc",
+  "UpdateType": "keepBest",
+  "ResetConfig": null,
+  "TieringConfig": null
+}

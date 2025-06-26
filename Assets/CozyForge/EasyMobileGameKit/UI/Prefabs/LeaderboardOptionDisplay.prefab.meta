@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 1997efe8c7362ed488379846f973a6d8
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 306754
+  packageName: Easy Mobile Game Kit
+  packageVersion: 1.0
+  assetPath: Assets/CozyForge/EasyMobileGameKit/UI/Prefabs/LeaderboardOptionDisplay.prefab
+  uploadId: 730765

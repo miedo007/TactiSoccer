@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 644343e9483cf074082d0c67ac53b09b
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 307724
+  packageName: Battle Pass for Easy Mobile Game Kit
+  packageVersion: 1.0
+  assetPath: Assets/CozyForge/EasyMobileGameKit/Modules/BattlePass/UI/TierProgressDisplay.prefab
+  uploadId: 735815

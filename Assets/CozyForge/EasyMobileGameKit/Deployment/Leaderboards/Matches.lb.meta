@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 3c62bea2971fdfe4983c8c06afca4633
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: 29b843d57e8b40c89c0e72629a2bb69f, type: 3}
+AssetOrigin:
+  serializedVersion: 1
+  productId: 306754
+  packageName: Easy Mobile Game Kit
+  packageVersion: 1.0
+  assetPath: Assets/CozyForge/EasyMobileGameKit/Deployment/Leaderboards/Matches.lb
+  uploadId: 730765

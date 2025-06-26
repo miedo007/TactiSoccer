@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 4f8e2ab53aa739f4ba1f5b63747a01fd
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: 9bd90f3c718327e4eb9b5bf02269a550, type: 3}
+AssetOrigin:
+  serializedVersion: 1
+  productId: 307124
+  packageName: Daily Rewards for Easy Mobile Game Kit
+  packageVersion: 1.0
+  assetPath: Assets/CozyForge/EasyMobileGameKit/Modules/DailyRewards/Deployment/RemoteConfigs/DailyRewards.rc
+  uploadId: 730770

@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 0516a88e397f5204a8455f74a0f32774
+TextScriptImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 307724
+  packageName: Battle Pass for Easy Mobile Game Kit
+  packageVersion: 1.0
+  assetPath: Assets/CozyForge/EasyMobileGameKit/Modules/BattlePass/README.txt
+  uploadId: 735815

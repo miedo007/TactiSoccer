@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: eedeed99c57a9e94a9c621cb62c04834
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: a5b15f29e7cc443c3b6d62c881c2512c, type: 3}
+AssetOrigin:
+  serializedVersion: 1
+  productId: 306754
+  packageName: Easy Mobile Game Kit
+  packageVersion: 1.0
+  assetPath: Assets/CozyForge/EasyMobileGameKit/Deployment/EasyMobileGameKit.ddef
+  uploadId: 730765

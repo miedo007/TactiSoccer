@@ -1,0 +1,7 @@
+The following assets are under a third party license:
+
+FONTS:
+LINESeedSans
+    Path: Assets/CozyForge/EasyMobileGameKit/UI/Fonts
+    License: SIL Open Font License 1.1
+    Source: https://scripts.sil.org/OFL

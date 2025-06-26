@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 69f9273b7dd7df54285f44da42be0740
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 306754
+  packageName: Easy Mobile Game Kit
+  packageVersion: 1.0
+  assetPath: Assets/CozyForge/EasyMobileGameKit/Resources/DatabaseEntries/Currencies/GOLD.asset
+  uploadId: 730765

@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: f04ce955bb4e80d4f9719effaa918c2c
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 306754
+  packageName: Easy Mobile Game Kit
+  packageVersion: 1.0
+  assetPath: Assets/CozyForge/EasyMobileGameKit/GameData/LeaderboardList.asset
+  uploadId: 730765

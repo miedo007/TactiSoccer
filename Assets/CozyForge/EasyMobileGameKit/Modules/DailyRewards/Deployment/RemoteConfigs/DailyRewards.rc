@@ -1,0 +1,42 @@
+{
+  "$schema": "https://ugs-config-schemas.unity3d.com/v1/remote-config.schema.json",
+  "entries": {
+    "DAILY_REWARDS_CONFIG": {
+                                "totalDays": 7,
+                                "secondsPerDay": 86400,
+                                "dailyRewards": [
+                                    [{
+                                        "id": "GOLD",
+                                        "quantity": 300
+                                    }],
+                                    [{
+                                        "id": "GOLD",
+                                        "quantity": 500
+                                    }],
+                                    [{
+                                        "id": "GOLD",
+                                        "quantity": 1000
+                                    }],
+                                    [{
+                                        "id": "GOLD",
+                                        "quantity": 1500
+                                    }],
+                                    [{
+                                        "id": "GOLD",
+                                        "quantity": 2500
+                                    }],
+                                    [{
+                                        "id": "GOLD",
+                                        "quantity": 4000
+                                    }],
+                                    [{
+                                        "id": "GOLD",
+                                        "quantity": 7500
+                                    }]
+                                ]
+                            }
+  },
+
+  "types" : {
+  }
+}

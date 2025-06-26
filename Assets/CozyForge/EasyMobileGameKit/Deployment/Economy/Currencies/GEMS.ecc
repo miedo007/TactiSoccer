@@ -1,0 +1,9 @@
+{
+  "$schema": "https://ugs-config-schemas.unity3d.com/v1/economy/economy-currency.schema.json",
+  "type": "CURRENCY",
+      "id": "GEMS",
+      "name": "Gems",
+      "initial": 0,
+      "max": 0,
+      "customData": null,
+}

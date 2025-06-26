@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 61cebaf3b5c2ea3459d23164028c3859
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 306754
+  packageName: Easy Mobile Game Kit
+  packageVersion: 1.0
+  assetPath: Assets/CozyForge/EasyMobileGameKit/Resources/DatabaseEntries/Currencies/GEMS.asset
+  uploadId: 730765

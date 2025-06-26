@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: d7134540f5ab36844b0335c6d8532339
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 307724
+  packageName: Battle Pass for Easy Mobile Game Kit
+  packageVersion: 1.0
+  assetPath: Assets/CozyForge/EasyMobileGameKit/Modules/BattlePass/UI/BattlePassView.prefab
+  uploadId: 735815

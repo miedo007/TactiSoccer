@@ -1,0 +1,25 @@
+fileFormatVersion: 2
+guid: 307b7ff887224de47ab91365e676d10c
+ScriptedImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 2
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+  script: {fileID: 11500000, guid: fbc33bd6a5704c0881dc7a9ead54089b, type: 3}
+  Parameters:
+  - Name: amount
+    ParameterType: 1
+    Required: 1
+  - Name: currencyId
+    ParameterType: 0
+    Required: 1
+  Source: 0
+AssetOrigin:
+  serializedVersion: 1
+  productId: 306754
+  packageName: Easy Mobile Game Kit
+  packageVersion: 1.0
+  assetPath: Assets/CozyForge/EasyMobileGameKit/Deployment/CloudCode/SpendCurrency.js
+  uploadId: 730765

@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: a241f8284546d9e4e9134dd4446817d0
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 307124
+  packageName: Daily Rewards for Easy Mobile Game Kit
+  packageVersion: 1.0
+  assetPath: Assets/CozyForge/EasyMobileGameKit/Modules/DailyRewards/UI/DailyRewardsView.prefab
+  uploadId: 730770

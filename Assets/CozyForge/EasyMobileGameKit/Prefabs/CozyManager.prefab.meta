@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 630d720232fa9474291924fcb7acc064
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 306754
+  packageName: Easy Mobile Game Kit
+  packageVersion: 1.0
+  assetPath: Assets/CozyForge/EasyMobileGameKit/Prefabs/CozyManager.prefab
+  uploadId: 730765

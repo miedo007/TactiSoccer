@@ -1,0 +1,9 @@
+fileFormatVersion: 2
+guid: 19d3cab04f79b9a4385858f36d797deb
+AssetOrigin:
+  serializedVersion: 1
+  productId: 306754
+  packageName: Easy Mobile Game Kit
+  packageVersion: 1.0
+  assetPath: Assets/CozyForge/EasyMobileGameKit/Scripts/Managers/SingletonHelper.cs
+  uploadId: 730765

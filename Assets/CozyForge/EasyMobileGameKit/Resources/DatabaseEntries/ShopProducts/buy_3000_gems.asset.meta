@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: b57099609e0a5384f85a163f89f0e5da
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 306754
+  packageName: Easy Mobile Game Kit
+  packageVersion: 1.0
+  assetPath: Assets/CozyForge/EasyMobileGameKit/Resources/DatabaseEntries/ShopProducts/buy_3000_gems.asset
+  uploadId: 730765
