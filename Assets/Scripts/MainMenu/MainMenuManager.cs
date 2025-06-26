@@ -2,62 +2,66 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.SceneManagement;
-using Unity.Services.Economy.Model;
 using CozyFramework;
 using System.Collections;
 
 public class MainMenuManager : MonoBehaviour
 {
     [Header("UI References")]
-    public TextMeshProUGUI entryFeeText;   // “Entry Fee: Y”
-    public Button playButton;              // Play → GameScene
-    public TextMeshProUGUI errorText;      // “Not enough coins!”
+    public Image entryFeeIcon;             // The Image component of EntryFeeIcon
+    public TextMeshProUGUI entryFeeText;   // The TextMeshProUGUI of EntryFeeText
+    public Button playButton;              // Your Play button
+    public TextMeshProUGUI errorText;      // Error text below it
 
     [Header("Settings")]
-    [Tooltip("ID of the currency to charge (must match your CurrencyDisplay ID)")]
+    [Tooltip("Currency ID to spend (must match your CurrencyDisplay ID)")]
     public string currencyId = "GOLD";
-    [Tooltip("How many of that currency it costs to start a match")]
+    [Tooltip("How many of that currency it costs")]
     public int entryFee = 10;
-    [Tooltip("Name of your gameplay Scene")]
+    [Tooltip("Gameplay scene name")]
     public string gameSceneName = "GameScene";
 
     private IEnumerator Start()
     {
-        // hide error + disable Play until balance is checked
+        // 1) Hide error + disable Play until ready
         playButton.interactable = false;
         errorText.gameObject.SetActive(false);
 
         if (CozyAPI.Instance == null)
         {
-            Debug.LogError("Missing CozyManager.prefab! It must be in the Main Menu scene.");
+            Debug.LogError("Missing CozyManager.prefab in this scene!");
             yield break;
         }
 
-        // poll until the SDK has loaded your balances
+        // 2) Wait until the SDK has loaded your currencies
         bool ready = false;
         while (!ready)
         {
             try
             {
-                // try reading any balance
                 CozyAPI.Instance.GetCurrencyValue(currencyId);
                 ready = true;
             }
             catch (System.NullReferenceException)
             {
-                // not ready yet
+                // not ready—try again next frame
             }
             yield return null;
         }
 
-        // set the entry fee label
+        // 3) Set the icon sprite from your database
+        var def = CozyDatabase.Instance.GetCozyCurrency(currencyId);
+        if (def?.Icon != null)
+            entryFeeIcon.sprite = def.Icon;
+
+        // 4) Set the combined text
         entryFeeText.text = $"Entry Fee: {entryFee}";
 
-        // now check the actual balance
+        // 5) Enable Play if the player has enough
         int bal = CozyAPI.Instance.GetCurrencyValue(currencyId);
         playButton.interactable = (bal >= entryFee);
 
-        // hook up Play
+        // 6) Hook up the Play click
         playButton.onClick.AddListener(OnPlayPressed);
     }
 
@@ -72,10 +76,10 @@ public class MainMenuManager : MonoBehaviour
             return;
         }
 
-        // spend it
+        // Deduct the fee
         _ = CozyAPI.Instance.SpendCurrency(currencyId, entryFee);
 
-        // load your game
+        // Load the gameplay scene
         SceneManager.LoadScene(gameSceneName);
     }
 
