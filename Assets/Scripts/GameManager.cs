@@ -6,6 +6,7 @@ using UnityEngine.UI;
 using UnityEngine.InputSystem;       // ← for Touchscreen
 using TMPro;
 using MoreMountains.Feedbacks;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
@@ -41,23 +42,11 @@ public class GameManager : MonoBehaviour
 
     [Header("UI Text")]
     public TextMeshProUGUI goldText;
-    public TextMeshProUGUI potText;
     public TextMeshProUGUI messageText;
 
     [Header("Modifier UI")]
     [Tooltip("Separate text field to display modifier alerts")]
     public TextMeshProUGUI modifierText;
-
-    [Header("Bet UI")]
-    public GameObject betPanel;
-    public Button bet5Button;
-    public Button bet10Button;
-    public Button bet20Button;
-    public Button restartButton;
-
-    [Header("Bet Settings")]
-    public int startingGold = 20;
-    public int bonusPerAdvance = 1;
 
     [Header("Animation Settings")]
     public float tackleAnimDuration = 0.5f;
@@ -101,8 +90,14 @@ public class GameManager : MonoBehaviour
     [Tooltip("Turn off to disable all match modifiers and their effects.")]
     public bool enableModifiers = true;
 
+       [Header("Result Popup")]
+    public GameObject resultPopup;        // assign a simple panel with Text + Continue button
+    public TextMeshProUGUI resultText;    // “You Win!” / “You Lose!”
+    public Button continueButton;         // “Continue” → back to MainMenu
+
     // private state
-    private int playerGold, currentBet, pot;
+    private int playerGold;
+    private bool _playerWon;
     private GameObject ballInstance;
     private BallController ballCtrl;
     private int ballRow, ballCol;
@@ -153,36 +148,75 @@ public class GameManager : MonoBehaviour
             Destroy(pu.gameObject);
     }
 
-    void Start()
+   void Start()
+{
+    if (rulesButton != null && rulesPanel != null)
     {
-        if (rulesButton != null && rulesPanel != null)
-        {
-            rulesPanel.SetActive(false);
-            rulesButton.onClick.AddListener(() => rulesPanel.SetActive(!rulesPanel.activeSelf));
-        }
+        // ensure the button itself is visible
+        rulesButton.gameObject.SetActive(true);
 
-        penaltyBallStartPos = penaltyBall.anchoredPosition;
-        goalkeeperBaseScale = goalkeeperImage.rectTransform.localScale;
+        // hide the panel until the button is clicked
+        rulesPanel.SetActive(false);
 
-        // Initialize grid cells
-        for (int r = 0; r < gridManager.rows; r++)
-            for (int c = 0; c < gridManager.cols; c++)
-                gridManager.cells[r, c].GetComponent<Cell>().Initialize(r, c, this);
-
-        playerGold = startingGold;
-        UpdateGoldUI();
-        messageText.text = "";
-        modifierText.text = "";
-
-        bet5Button.onClick.AddListener(() => OnBetSelected(5));
-        bet10Button.onClick.AddListener(() => OnBetSelected(10));
-        bet20Button.onClick.AddListener(() => OnBetSelected(20));
-        restartButton.onClick.AddListener(OnRestart);
-        restartButton.gameObject.SetActive(false);
-
-        betPanel.SetActive(true);
-        DisableGrid();
+        // wire up the toggle
+        rulesButton.onClick.AddListener(() =>
+            rulesPanel.SetActive(!rulesPanel.activeSelf)
+        );
     }
+
+    penaltyBallStartPos = penaltyBall.anchoredPosition;
+    goalkeeperBaseScale = goalkeeperImage.rectTransform.localScale;
+
+    // Initialize grid cells
+    for (int r = 0; r < gridManager.rows; r++)
+        for (int c = 0; c < gridManager.cols; c++)
+            gridManager.cells[r, c].GetComponent<Cell>().Initialize(r, c, this);
+
+    messageText.text = "";
+    modifierText.text = "";
+
+    InitializeMatch();
+}
+
+
+    /// <summary>
+    /// Sets up a fresh match without any betting UI.
+    /// </summary>
+    /// <summary>
+/// Sets up a fresh match without any betting UI.
+/// </summary>
+private void InitializeMatch()
+{
+    // hide any leftover UIs
+    resultPopup?.SetActive(false);
+    penaltyPanel?.SetActive(false);
+    penaltyBall?.gameObject.SetActive(false);
+    goalkeeperImage?.gameObject.SetActive(false);
+
+    // reset grid & state
+    DisableGrid();
+    ballRow = gridManager.rows / 2;
+    ballCol = gridManager.cols / 2;
+    possession = (Random.value < 0.5f) ? Actor.Player : Actor.AI;
+    SpawnCharacter();
+
+    // power-ups & modifiers if enabled
+    ClearFieldPowerUps();
+    if (enableModifiers)
+    {
+        matchModifierManager.PickRandomModifiers();
+        PopulateModifiersUI();
+    }
+    if (enablePowerUps)
+        powerUpSpawner.SpawnDrops();
+
+    // start the very first turn
+    StartNewTurn();
+
+    // re-enable the grid so cells are clickable immediately
+    EnableGrid();
+}
+
 
     void SpawnCharacter()
     {
@@ -194,57 +228,6 @@ public class GameManager : MonoBehaviour
         ballCtrl = ballInstance.GetComponent<BallController>();
     }
 
-    void OnBetSelected(int amount)
-    {
-        ClearFieldPowerUps();
-
-        if (enableModifiers)
-        {
-            matchModifierManager.PickRandomModifiers();
-            PopulateModifiersUI();
-        }
-        rulesPanel?.SetActive(false);
-
-        possession = Random.value < 0.5f ? Actor.Player : Actor.AI;
-        ballRow = gridManager.rows / 2;
-        ballCol = gridManager.cols / 2;
-
-        penaltyPanel.SetActive(false);
-        penaltyBall.gameObject.SetActive(false);
-        goalkeeperImage.gameObject.SetActive(false);
-        foreach (var btn in penaltyButtons)
-            btn.GetComponent<Image>().color = Color.white;
-
-        ClearHighlights();
-
-        if (amount > playerGold)
-        {
-            ShowMessage("Not enough gold!", 1f);
-            return;
-        }
-
-        currentBet = amount;
-        playerGold -= amount;
-        UpdateGoldUI();
-
-        pot = currentBet * 2;
-        UpdatePotUI();
-
-        ShowMessage(possession == Actor.Player ? "You Kick-Off" : "Opponent Kick-Off", 4f);
-
-        betPanel.SetActive(false);
-        bet5Button.gameObject.SetActive(false);
-        bet10Button.gameObject.SetActive(false);
-        bet20Button.gameObject.SetActive(false);
-
-        SpawnCharacter();
-        EnableGrid();
-
-        if (enablePowerUps)
-            powerUpSpawner.SpawnDrops();
-
-        StartNewTurn();
-    }
 
    void StartNewTurn()
 {
@@ -334,7 +317,7 @@ public class GameManager : MonoBehaviour
    public void OnCellClicked(int r, int c)
 {
     // ignore taps if we’re mid‐resolution or showing the bet UI
-    if (_inputLocked || betPanel.activeSelf) 
+    if (_inputLocked || penaltyPanel.activeSelf)
         return;
 
     int tr = possession == Actor.Player ? ballRow + 1 : ballRow - 1;
@@ -458,8 +441,7 @@ public class GameManager : MonoBehaviour
         if (enableModifiers) matchModifierManager.OnAdvance();
         ShowMessage(attacker == Actor.Player ? "Dribble!" : "Dribbled!", 2f);
         (attacker == Actor.Player ? feedbackPlayerAdvance : feedbackOpponentAdvance)?.PlayFeedbacks();
-        pot += bonusPerAdvance;
-        UpdatePotUI();
+
     }
 
     // 5) Column Loyalty
@@ -728,8 +710,6 @@ private IEnumerator PenaltySequence(Actor attacker)
     {
         if (attacker == Actor.Player)
         {
-            playerGold += pot;
-            UpdateGoldUI();
             ShowMessage("GOAAAAAL! You Win!", 3f);
             feedbackGoalForPlayer?.PlayFeedbacks();
             feedbackMatchWin?.PlayFeedbacks();
@@ -814,23 +794,24 @@ private IEnumerator PenaltySequence(Actor attacker)
     return Random.Range(0, gridManager.cols);
 }
 
-    private void UpdatePotUI() => potText.text = $"Pot: {pot}";
     private void UpdateGoldUI() => goldText.text = $"Gold: {playerGold}";
 
-    private void EndMatch()
-    {
-        DisableGrid();
-        restartButton.gameObject.SetActive(false);
-        betPanel.SetActive(true);
-        bet5Button.gameObject.SetActive(true);
-        bet10Button.gameObject.SetActive(true);
-        bet20Button.gameObject.SetActive(true);
-    }
+ private void EndMatch()
+{
+    DisableGrid();
+
+    // Show result based on the flag set in PenaltySequence
+    resultText.text = _playerWon ? "You Win!" : "You Lose!";
+    resultPopup.SetActive(true);
+
+    continueButton.onClick.RemoveAllListeners();
+    continueButton.onClick.AddListener(() =>
+        SceneManager.LoadScene("MainMenu"));
+}
 
     public void OnRestart()
     {
         _inputLocked = false;
-        restartButton.gameObject.SetActive(false);
         messageText.text = "";
         modifierText.text = "";
         possession = Random.value < 0.5f ? Actor.Player : Actor.AI;
@@ -844,10 +825,7 @@ private IEnumerator PenaltySequence(Actor attacker)
             btn.GetComponent<Image>().color = Color.white;
 
         SpawnCharacter();
-        betPanel.SetActive(true);
-        bet5Button.gameObject.SetActive(true);
-        bet10Button.gameObject.SetActive(true);
-        bet20Button.gameObject.SetActive(true);
+       
     }
 
     private void DisableGrid()
