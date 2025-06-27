@@ -105,11 +105,8 @@ public class GameManager : MonoBehaviour
 
     [Header("Leaderboard")]
     [Tooltip("Remote‐config ID for your leaderboard")]
-    public string leaderboardID = "highscore";
-
-    // Keeps track of the player's cumulative score to submit
     private int _leaderboardScore = 0;
-
+    public string leaderboardID = "highscore";
 
     // private state
     private int playerGold;
@@ -117,6 +114,8 @@ public class GameManager : MonoBehaviour
     private GameObject ballInstance;
     private BallController ballCtrl;
     private int ballRow, ballCol;
+
+   
 
     public enum Actor { Player, AI }
     private Actor possession;
@@ -835,41 +834,29 @@ private IEnumerator PenaltySequence(Actor attacker)
     }
 
 
-    private void EndMatch()
+  private void EndMatch()
+{
+    DisableGrid();
+
+    // show result
+    resultText.text = _playerWon ? "You Win!" : "You Lose!";
+    resultPopup.SetActive(true);
+
+    // calculate how many points this match earned (or lost)
+    int delta = _playerWon ? +10 : -5;
+
+    // fire-and-forget submission of just the delta
+    _ = CozyLeaderboards.Instance.AddScoreToLeaderboard(leaderboardID, delta);
+    Debug.Log($"Submitted {delta} points to '{leaderboardID}' (cumulative)");
+
+    // wire up Continue
+    continueButton.onClick.RemoveAllListeners();
+    continueButton.onClick.AddListener(() =>
     {
-        DisableGrid();
-
-        // 1) Submit to leaderboard
-        UpdateAndSubmitLeaderboardScore(_playerWon);
-
-        // 2) Show the result popup
-        resultText.text = _playerWon ? "You Win!" : "You Lose!";
-        resultPopup.SetActive(true);
-
-        // 3) Wire up Continue
-        continueButton.onClick.RemoveAllListeners();
-        continueButton.onClick.AddListener(OnContinuePressed);
-    }  // ← closes EndMatch()
-
-    /// <summary>
-    /// When the player taps Continue, await the cloud payout (if any), then return to main menu.
-    /// </summary>
-    private async void OnContinuePressed()
-    {
-        if (_playerWon)
-        {
-            try
-            {
-                await CozyAPI.Instance.GainCurrency(currencyId, entryFee * 2);
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogWarning($"Reward failed: {e.Message}");
-            }
-        }
-
         SceneManager.LoadScene("MainMenu");
-    }
+    });
+}
+
 
     public void OnRestart()
     {
