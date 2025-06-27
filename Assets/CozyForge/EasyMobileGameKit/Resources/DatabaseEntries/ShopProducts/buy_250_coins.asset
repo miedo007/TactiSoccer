@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ddb9f205f62f7d5489571e0916829a86, type: 3}
-  m_Name: buy_10000_gems
+  m_Name: buy_250_coins
   m_EditorClassIdentifier: 
   entryName: 10000 Gems
   id: buy_10000_gems
