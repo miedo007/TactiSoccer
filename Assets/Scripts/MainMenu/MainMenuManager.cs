@@ -4,26 +4,49 @@ using TMPro;
 using UnityEngine.SceneManagement;
 using CozyFramework;
 using System.Collections;
+using Unity.Services.Economy.Model;   // GetBalancesResult
 
 public class MainMenuManager : MonoBehaviour
 {
     [Header("UI References")]
-    public Image entryFeeIcon;             // The Image component of EntryFeeIcon
-    public TextMeshProUGUI entryFeeText;   // The TextMeshProUGUI of EntryFeeText
-    public Button playButton;              // Your Play button
-    public TextMeshProUGUI errorText;      // Error text below it
+    public Image entryFeeIcon;
+    public TextMeshProUGUI entryFeeText;
+    public Button playButton;
+    public TextMeshProUGUI errorText;
 
     [Header("Settings")]
-    [Tooltip("Currency ID to spend (must match your CurrencyDisplay ID)")]
     public string currencyId = "GOLD";
-    [Tooltip("How many of that currency it costs")]
-    public int entryFee = 10;
-    [Tooltip("Gameplay scene name")]
+    public int    entryFee   = 10;
     public string gameSceneName = "GameScene";
 
+    // ───────── Awake: add click listener once ─────────
+    private void Awake()
+    {
+        playButton.onClick.RemoveAllListeners();
+        playButton.onClick.AddListener(OnPlayPressed);
+    }
+
+    // ───────── Currency‐refresh listener ─────────
+    private void OnEnable()  => CozyEvents.CurrencyRefresh += OnCurrencyRefresh;
+    private void OnDisable() => CozyEvents.CurrencyRefresh -= OnCurrencyRefresh;
+
+    private void OnCurrencyRefresh(GetBalancesResult result)
+{
+    // If the button is gone (scene unloading) just ignore the event
+    if (playButton == null) return;
+
+    foreach (var bal in result.Balances)
+    {
+        if (bal.CurrencyId != currencyId) continue;
+        playButton.interactable = (bal.Balance >= entryFee);
+        break;
+    }
+}
+
+
+    // ───────── Startup coroutine ─────────
     private IEnumerator Start()
     {
-        // 1) Hide error + disable Play until ready
         playButton.interactable = false;
         errorText.gameObject.SetActive(false);
 
@@ -33,45 +56,41 @@ public class MainMenuManager : MonoBehaviour
             yield break;
         }
 
-        // 2) Wait until the SDK has loaded your currencies
-        bool ready = false;
-        while (!ready)
+        // Wait until Cozy’s local cache is initialised
+        bool cacheReady = false;
+        while (!cacheReady)
         {
             try
             {
                 CozyAPI.Instance.GetCurrencyValue(currencyId);
-                ready = true;
+                cacheReady = true;
             }
             catch (System.NullReferenceException)
             {
-                // not ready—try again next frame
+                // still not ready; wait one frame below
             }
-            yield return null;
+
+            if (!cacheReady)
+                yield return null;
         }
 
-        // ── NEW GUARD ───────────────────────────────────────────────
-        // If the menu UI was destroyed (e.g. another screen replaced it)
-        // stop this coroutine to avoid MissingReferenceExceptions.
-        if (this == null || playButton == null)
-            yield break;
-        // ────────────────────────────────────────────────────────────
+        // Guard: object may have been destroyed while waiting
+        if (this == null || playButton == null) yield break;
 
-        // 3) Set the icon sprite from your database
+        // Icon + entry‐fee label
         var def = CozyDatabase.Instance.GetCozyCurrency(currencyId);
-        if (def?.Icon != null)
-            entryFeeIcon.sprite = def.Icon;
-
-        // 4) Set the combined text
+        if (def?.Icon != null) entryFeeIcon.sprite = def.Icon;
         entryFeeText.text = $"Entry Fee: {entryFee}";
 
-        // 5) Enable Play if the player has enough
-        int bal = CozyAPI.Instance.GetCurrencyValue(currencyId);
-        playButton.interactable = (bal >= entryFee);
+        // Force fresh balances from the server
+        var pull = CozyEconomy.Instance.RefreshCurrencyBalances();
+        while (!pull.IsCompleted) yield return null;
+        if (pull.IsFaulted) Debug.LogException(pull.Exception);
 
-        // 6) Hook up the Play click
-        playButton.onClick.AddListener(OnPlayPressed);
+        // Play button state will be updated by OnCurrencyRefresh
     }
 
+    // ───────── Play click ─────────
     private void OnPlayPressed()
     {
         int bal = CozyAPI.Instance.GetCurrencyValue(currencyId);
@@ -83,15 +102,9 @@ public class MainMenuManager : MonoBehaviour
             return;
         }
 
-        // Deduct the fee
         _ = CozyAPI.Instance.SpendCurrency(currencyId, entryFee);
-
-        // Load the gameplay scene
         SceneManager.LoadScene(gameSceneName);
     }
 
-    private void HideError()
-    {
-        errorText.gameObject.SetActive(false);
-    }
+    private void HideError() => errorText.gameObject.SetActive(false);
 }

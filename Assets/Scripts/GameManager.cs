@@ -454,6 +454,18 @@ private void InitializeMatch()
         StartCoroutine(ThrowOffScreen(loser, attacker));
 
         possession = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
+
+// ── NEW: trigger penalty if the ball is now on that side’s goal row ──
+bool atGoalRow =
+    (possession == Actor.Player && ballRow == gridManager.rows - 1) ||
+    (possession == Actor.AI     && ballRow == 0);
+
+if (atGoalRow)
+{
+    // ThrowOffScreen() is already running; now go straight to penalties
+    StartCoroutine(PenaltySequence(possession));
+    yield break;                           // skip SpawnCharacter/StartNewTurn
+}
         SpawnCharacter();
         StartNewTurn();
         yield break;
@@ -834,8 +846,13 @@ private IEnumerator PenaltySequence(Actor attacker)
     resultText.text = _playerWon ? "You Win!" : "You Lose!";
     resultPopup.SetActive(true);
 
+    // Disable Continue until reward logic finishes
+    continueButton.interactable = false;
+
     if (_playerWon)
         StartCoroutine(AwardGoldCoroutine());
+    else
+        continueButton.interactable = true;   // loser – no reward to wait for
 
     int delta = _playerWon ? +10 : -5;
     _ = CozyLeaderboards.Instance.AddScoreToLeaderboard(leaderboardID, delta);
@@ -844,25 +861,27 @@ private IEnumerator PenaltySequence(Actor attacker)
     continueButton.onClick.AddListener(() => SceneManager.LoadScene("MainMenu"));
 }
 
-// ─── new helper ────────────────────────────────────────────────────
+// ---------------------------------------------
+// GameManager : AwardGoldCoroutine()
+// ---------------------------------------------
 private IEnumerator AwardGoldCoroutine()
 {
-    Debug.Log($"[Reward] attempting to credit {winReward} {currencyId}");
-
     var task = CozyAPI.Instance.GainCurrency(currencyId, winReward);
 
-    while (!task.IsCompleted)            // wait until the SDK call finishes
+    while (!task.IsCompleted)         // wait for server reply
         yield return null;
 
     if (task.IsFaulted)
     {
         Debug.LogException(task.Exception);
-        ShowMessage("Couldn’t give reward – check connection", 2f);
-        yield break;
+        ShowMessage("Reward failed – check connectivity", 2f);
+        // Still allow the player to leave
     }
 
-    Debug.Log("[Reward] success");
-    UpdateGoldUI();                      // now we’re sure the cache is fresh
+    UpdateGoldUI();                   // bump in-game counter
+
+    // Re-enable Continue now that balance is updated
+    continueButton.interactable = true;
 }
 
 
