@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ddb9f205f62f7d5489571e0916829a86, type: 3}
   m_Name: buy_100_coins
   m_EditorClassIdentifier: 
-  entryName: 3000 Gems
-  id: buy_3000_gems
+  entryName: 100 Coins
+  id: buy_100_coins
   description: 
-  icon: {fileID: 21300000, guid: 9f3b0a0dda471894aa5d7db3f557b41c, type: 3}
+  icon: {fileID: 21300000, guid: c63da4c1e0a56a44d931f74b4e63f60d, type: 3}
