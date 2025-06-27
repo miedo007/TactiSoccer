@@ -1,0 +1,16 @@
+{
+    "app_store_connect": {
+      "api_key": {
+        "key_id":      "3CQS7VQX8M",
+        "issuer_id":   "ee72cf76-aca2-4bc7-9ef8-1ea94aae7051",
+        "key_filepath": "fastlane/AuthKey_3CQS7VQX8M.p8"
+      },
+      "team_id": "YFATZ6J7BW6"
+    },
+    "testflight": {
+      "submit": true,
+      "skip_waiting_for_build_processing": false,
+      "notify_external_testers": false
+    }
+  }
+  
