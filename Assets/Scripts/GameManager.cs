@@ -167,15 +167,7 @@ public class GameManager : MonoBehaviour
     /// Adjusts the running leaderboard score by +10 (win) or –5 (lose), clamps ≥0,
     /// then submits via the CozyLeaderboards API.
     /// </summary>
-    private void UpdateAndSubmitLeaderboardScore(bool playerWon)
-    {
-        // 1) Adjust
-        int delta = playerWon ? +10 : -5;
-        _leaderboardScore = Mathf.Max(0, _leaderboardScore + delta);
 
-        // 2) Submit asynchronously
-        _ = CozyLeaderboards.Instance.AddScoreToLeaderboard(leaderboardID, _leaderboardScore);
-    }
    
    void Start()
 {
@@ -737,7 +729,6 @@ private IEnumerator PenaltySequence(Actor attacker)
         // record result so EndMatch shows correct message
         _playerWon = (attacker == Actor.Player);
          //  — NEW: update & submit leaderboard points —
-        UpdateAndSubmitLeaderboardScore(_playerWon);
 
         if (attacker == Actor.Player)
         {
@@ -838,24 +829,25 @@ private IEnumerator PenaltySequence(Actor attacker)
 {
     DisableGrid();
 
-    // show result
+    // Show “You Win!” / “You Lose!”
     resultText.text = _playerWon ? "You Win!" : "You Lose!";
     resultPopup.SetActive(true);
 
-    // calculate how many points this match earned (or lost)
+    // Calculate this match’s delta
     int delta = _playerWon ? +10 : -5;
 
-    // fire-and-forget submission of just the delta
-    _ = CozyLeaderboards.Instance.AddScoreToLeaderboard(leaderboardID, delta);
-    Debug.Log($"Submitted {delta} points to '{leaderboardID}' (cumulative)");
+    // Submit just the delta; with Sum aggregation this will roll up
+    _ = CozyLeaderboards.Instance.AddScoreToLeaderboard("highscore", delta);
+    Debug.Log($"Submitted {delta} points to 'highscore' (cumulative)");
 
-    // wire up Continue
+    // Wire up your Continue button to load Main Menu
     continueButton.onClick.RemoveAllListeners();
     continueButton.onClick.AddListener(() =>
-    {
-        SceneManager.LoadScene("MainMenu");
-    });
+        SceneManager.LoadScene("MainMenu")
+    );
 }
+
+
 
 
     public void OnRestart()
