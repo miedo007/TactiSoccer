@@ -625,6 +625,7 @@ MonoBehaviour:
   continueButton: {fileID: 1723126651}
   entryFee: 5
   currencyId: GOLD
+  winReward: 15
   leaderboardID: highscore
   penaltyColumnMappings:
   - columnIndex: 0

@@ -49,6 +49,13 @@ public class MainMenuManager : MonoBehaviour
             yield return null;
         }
 
+        // ── NEW GUARD ───────────────────────────────────────────────
+        // If the menu UI was destroyed (e.g. another screen replaced it)
+        // stop this coroutine to avoid MissingReferenceExceptions.
+        if (this == null || playButton == null)
+            yield break;
+        // ────────────────────────────────────────────────────────────
+
         // 3) Set the icon sprite from your database
         var def = CozyDatabase.Instance.GetCozyCurrency(currencyId);
         if (def?.Icon != null)

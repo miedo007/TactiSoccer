@@ -103,6 +103,9 @@ public class GameManager : MonoBehaviour
     [Tooltip("Currency ID you use for coins")]
     public string currencyId = "GOLD";
 
+    [Tooltip("Gold awarded when the player wins a match")]
+    public int winReward = 15;      // tweak in Inspector or compute at runtime
+
     [Header("Leaderboard")]
     [Tooltip("Remote‐config ID for your leaderboard")]
     private int _leaderboardScore = 0;
@@ -828,25 +831,39 @@ private IEnumerator PenaltySequence(Actor attacker)
   private void EndMatch()
 {
     DisableGrid();
-
-    // Show “You Win!” / “You Lose!”
     resultText.text = _playerWon ? "You Win!" : "You Lose!";
     resultPopup.SetActive(true);
 
-    // Calculate this match’s delta
+    if (_playerWon)
+        StartCoroutine(AwardGoldCoroutine());
+
     int delta = _playerWon ? +10 : -5;
+    _ = CozyLeaderboards.Instance.AddScoreToLeaderboard(leaderboardID, delta);
 
-    // Submit just the delta; with Sum aggregation this will roll up
-    _ = CozyLeaderboards.Instance.AddScoreToLeaderboard("highscore", delta);
-    Debug.Log($"Submitted {delta} points to 'highscore' (cumulative)");
-
-    // Wire up your Continue button to load Main Menu
     continueButton.onClick.RemoveAllListeners();
-    continueButton.onClick.AddListener(() =>
-        SceneManager.LoadScene("MainMenu")
-    );
+    continueButton.onClick.AddListener(() => SceneManager.LoadScene("MainMenu"));
 }
 
+// ─── new helper ────────────────────────────────────────────────────
+private IEnumerator AwardGoldCoroutine()
+{
+    Debug.Log($"[Reward] attempting to credit {winReward} {currencyId}");
+
+    var task = CozyAPI.Instance.GainCurrency(currencyId, winReward);
+
+    while (!task.IsCompleted)            // wait until the SDK call finishes
+        yield return null;
+
+    if (task.IsFaulted)
+    {
+        Debug.LogException(task.Exception);
+        ShowMessage("Couldn’t give reward – check connection", 2f);
+        yield break;
+    }
+
+    Debug.Log("[Reward] success");
+    UpdateGoldUI();                      // now we’re sure the cache is fresh
+}
 
 
 
