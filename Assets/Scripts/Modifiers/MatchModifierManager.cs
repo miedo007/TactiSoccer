@@ -17,10 +17,17 @@ public class MatchModifierManager : MonoBehaviour
     {
         { MatchModifierDefinition.ModifierType.BurnedColumn,
             new List<MatchModifierDefinition.ModifierType> {
-                MatchModifierDefinition.ModifierType.ColumnLoyalty
+                MatchModifierDefinition.ModifierType.ColumnLoyalty,
+                MatchModifierDefinition.ModifierType.LockedColumn
             }
         },
         { MatchModifierDefinition.ModifierType.ColumnLoyalty,
+            new List<MatchModifierDefinition.ModifierType> {
+                MatchModifierDefinition.ModifierType.BurnedColumn
+            }
+        },
+
+        { MatchModifierDefinition.ModifierType.LockedColumn,
             new List<MatchModifierDefinition.ModifierType> {
                 MatchModifierDefinition.ModifierType.BurnedColumn
             }
