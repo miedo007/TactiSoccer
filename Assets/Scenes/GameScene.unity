@@ -200,8 +200,8 @@ Transform:
   m_GameObject: {fileID: 16400739}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -0.86, z: 0}
-  m_LocalScale: {x: 0.92, y: 0.92, z: 0.92}
+  m_LocalPosition: {x: 0, y: -1.37, z: 0}
+  m_LocalScale: {x: 0.8, y: 0.8, z: 0.8}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 0}
@@ -3573,10 +3573,10 @@ MonoBehaviour:
   cellPrefab: {fileID: 3749089453700557494, guid: c3f85dd7396d9ba4dad8cafe9ef69c38, type: 3}
   rows: 11
   cols: 5
-  cellSize: 0.7
+  cellSize: 0.6
   columnSpacing: 0.5
-  rowSpacing: 0.15
-  gridOriginOffset: {x: 0, y: -0.7}
+  rowSpacing: 0.12
+  gridOriginOffset: {x: 0, y: -1.3}
 --- !u!4 &961735194
 Transform:
   m_ObjectHideFlags: 0
