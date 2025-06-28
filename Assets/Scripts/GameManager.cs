@@ -400,8 +400,8 @@ private void InitializeMatch()
     // 2) Mirror Clash
     if (!tackle
         && enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MirrorClash)
-        && matchModifierManager.IsMirrorClash(attackChoice, defendChoice))
+       && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MirrorClash)
+        && matchModifierManager.IsMirrorClash(attackChoice, defendChoice, ballCol))
     {
         matchModifierManager.ApplyMirrorClash(ref ballRow, attacker);
         ShowModifier("Mirror Clash! Ball moves back!", 2f);

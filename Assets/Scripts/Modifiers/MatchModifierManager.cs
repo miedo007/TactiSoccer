@@ -167,11 +167,11 @@ public class MatchModifierManager : MonoBehaviour
             : -1;
 
     // --- Mirror Clash hooks ---
-    public bool IsMirrorClash(int attackCol, int defendCol)
-    {
-        if (_gridManager == null) return false;
-        return attackCol + defendCol == (_gridManager.cols - 1);
-    }
+    public bool IsMirrorClash(int attackCol, int defendCol, int centerColumn)
+ {
+     // mirror around the ball’s column
+     return attackCol + defendCol == centerColumn * 2;
+ }
 
     public void ApplyMirrorClash(ref int ballRow, GameManager.Actor attacker)
     {
