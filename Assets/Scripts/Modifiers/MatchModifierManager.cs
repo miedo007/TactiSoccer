@@ -57,6 +57,11 @@ public class MatchModifierManager : MonoBehaviour
     // Mirror Clash needs the grid dimensions
     private GridManager _gridManager;
 
+    // — Grid Mastery state —
+   private Dictionary<int,int> _dribbleCounts = new Dictionary<int,int>();
+   private bool _gridMasteryReady = false;
+   
+
     void Awake()
     {
         _gridManager = Object.FindFirstObjectByType<GridManager>();
@@ -83,6 +88,9 @@ public class MatchModifierManager : MonoBehaviour
         _prevAICol             = -1;
         _aiStreak              = 0;
         _quitOrDoubleColumn    = -1;
+        _dribbleCounts.Clear();
+        _gridMasteryReady = false;
+
 
         for (int i = 0; i < 2 && pool.Count > 0; i++)
         {
@@ -243,4 +251,40 @@ public class MatchModifierManager : MonoBehaviour
 
     public void SetQuitOrDoubleColumn(int col)
         => _quitOrDoubleColumn = col;
+
+         // Grid Mastery methods (add here)
+    /// <summary>
+    /// Call this whenever the player completes a dribble (not a tackle).
+    /// </summary>
+    public void OnDribble(int column)
+    {
+        if (!HasModifier(MatchModifierDefinition.ModifierType.GridMastery))
+            return;
+
+        // increment the counter for that column
+        if (_dribbleCounts.ContainsKey(column))
+            _dribbleCounts[column]++;
+        else
+            _dribbleCounts[column] = 1;
+
+        // once any column reaches 3 dribbles, flag the next move
+        if (_dribbleCounts[column] >= 3)
+            _gridMasteryReady = true;
+    }
+
+    /// <summary>
+    /// Returns true if the next dribble should ignore adjacency.
+    /// </summary>
+    public bool IsGridMasteryReady()
+        => _gridMasteryReady;
+
+    /// <summary>
+    /// Consume the free-move and reset counters.
+    /// </summary>
+    public void ConsumeGridMastery()
+    {
+        _gridMasteryReady = false;
+        _dribbleCounts.Clear();
+    
+    }
 }

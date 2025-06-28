@@ -375,6 +375,12 @@ private void InitializeMatch()
     && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
     && !matchModifierManager.CanAdvance();
 
+    // track Grid Mastery for this turn
+    bool gridMasteryActive = 
+    enableModifiers
+    && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.GridMastery)
+    && matchModifierManager.IsGridMasteryReady();
+
     // 1) Reveal picks
     int playerPick = (possession == Actor.Player) ? attackChoice : defendChoice;
     int aiPick     = (possession == Actor.Player) ? defendChoice : attackChoice;
@@ -489,7 +495,15 @@ private void InitializeMatch()
 }
 else
 {
-    if (enableModifiers) matchModifierManager.OnAdvance();
+    if (enableModifiers) 
+        matchModifierManager.OnAdvance();
+
+    // track dribble for Grid Mastery
+    matchModifierManager.OnDribble(attackChoice);  // ← semicolon here
+
+    if (gridMasteryActive)
+        matchModifierManager.ConsumeGridMastery();
+
     ShowMessage(attacker == Actor.Player ? "Dribble!" : "Dribbled!", 2f);
     (attacker == Actor.Player ? feedbackPlayerAdvance : feedbackOpponentAdvance)?.PlayFeedbacks();
 }
@@ -798,10 +812,19 @@ private IEnumerator PenaltySequence(Actor attacker)
     _allowedColumns.Clear();
     if (tr < 0 || tr >= gridManager.rows) return;
 
-    // 1) Build the base allowed columns list
-    var baseCols = restrictToAdjacent
-        ? GetAdjacentColumns()
-        : Enumerable.Range(0, gridManager.cols).ToList();
+    // ── Grid Mastery check ──
+    bool gridMasteryActive =
+        enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.GridMastery)
+        && matchModifierManager.IsGridMasteryReady();  // ← semicolon here
+
+    // 1) Build the base allowed columns list (full row if Grid Mastery, else adjacency)
+    var baseCols = gridMasteryActive
+        ? Enumerable.Range(0, gridManager.cols).ToList()
+        : (restrictToAdjacent
+            ? GetAdjacentColumns()
+            : Enumerable.Range(0, gridManager.cols).ToList()
+          );
 
     if (enablePowerUps)
         baseCols = baseCols.FindAll(c => powerUpManager.GetAllowedColumns(attacker.ToString()).Contains(c));
@@ -819,7 +842,7 @@ private IEnumerator PenaltySequence(Actor attacker)
         gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
     }
 
-    // 3) If the next dribble (for whoever is attacking) will hit the 4th-dribble penalty, overlay red
+    // 3) Momentum Limit warning (unchanged)
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
         && !matchModifierManager.CanAdvance())
@@ -827,11 +850,12 @@ private IEnumerator PenaltySequence(Actor attacker)
         foreach (int c in _allowedColumns)
         {
             var sr = gridManager.cells[tr, c].GetComponent<SpriteRenderer>();
-            // 50% opaque red tint on top of the yellow pulse
             sr.color = new Color(1f, 0f, 0f, 0.5f);
         }
     }
 }
+
+
 
 
     private void ClearHighlights()
