@@ -1062,10 +1062,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   allModifiers:
-  - {fileID: 11400000, guid: 8a87c6132910e7f40aa207b246f9af78, type: 2}
-  - {fileID: 11400000, guid: e3bd8075eada1114981a27079a86992e, type: 2}
-  - {fileID: 11400000, guid: 0c384f1765087fd47bd057fb13f445d4, type: 2}
-  - {fileID: 11400000, guid: c56f76b35d03b7948b349a5b35197bff, type: 2}
+  - {fileID: 11400000, guid: 1d5cb588663dbcb4baea53425b1ddfb3, type: 2}
   activeModifiers: []
 --- !u!1 &476552956
 GameObject:

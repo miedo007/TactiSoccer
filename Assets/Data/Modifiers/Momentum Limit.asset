@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Momentum Limit
   m_EditorClassIdentifier: 
   modifierName: Momentum Limit
-  description: You can only advance 3 times in a row. Then you must be tackled
+  description: On 4th dribble in a row, success triggers a shootout sequence, a tackle
+    knocks you back 2 rows.
   icon: {fileID: 2061219240541987770, guid: 541e2938808cbb741883815b77ab97bd, type: 3}
   type: 0

@@ -370,6 +370,11 @@ private void InitializeMatch()
     int originalRow = ballRow;
     int dir = (attacker == Actor.Player) ? +1 : -1;
 
+// 0) Check if this is the 4th dribble under MomentumLimit
+    bool momentumLimitViolated = enableModifiers
+    && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
+    && !matchModifierManager.CanAdvance();
+
     // 1) Reveal picks
     int playerPick = (possession == Actor.Player) ? attackChoice : defendChoice;
     int aiPick     = (possession == Actor.Player) ? defendChoice : attackChoice;
@@ -413,70 +418,82 @@ private void InitializeMatch()
     }
 
     // 3) Momentum Limit
-    if (!tackle
-        && enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
-        && !matchModifierManager.CanAdvance())
+    // ── 3) Handle 4th dribble immediately ──
+    if (momentumLimitViolated && !tackle)
     {
-        tackle = true;
-        ShowModifier("Momentum Limit! Must be tackled!", 2f);
-        (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
-        matchModifierManager.OnTackle(attacker);
+        // you advanced on the 4th dribble → straight to penalties
+        ShowModifier("Momentum Limit! Penalty Shootout!", 2f);
+        (attacker == Actor.Player
+            ? feedbackPlayerAdvance
+            : feedbackOpponentAdvance
+        )?.PlayFeedbacks();
+        matchModifierManager.OnTackle(attacker);       // reset the streak
+        StartCoroutine(PenaltySequence(attacker));
+        yield break;
     }
+
+
 
     // 4) Tackle or Dribble
     if (tackle)
-    {
-        // Quit-or-Double penalty: back 2 rows if you tackled on that special cell
-        if (enableModifiers
-            && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble)
-            && attackChoice == matchModifierManager.GetQuitOrDoubleColumn())
-        {
-            ballRow = Mathf.Clamp(originalRow - 2 * dir, 0, gridManager.rows - 1);
-        }
-        else
-        {
-            ballRow = targetRow;
-        }
-        ballCol = attackChoice;
-        yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
-
-        ShowMessage(attacker == Actor.Player ? "Tackled!" : "Tackle!", 2f);
-        (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
-        if (enableModifiers) matchModifierManager.OnTackle(attacker);
-
-        var loserPrefab = (attacker == Actor.Player) ? aiLosePrefab : playerLosePrefab;
-        var loser = Instantiate(
-            loserPrefab,
-            gridManager.GetCellPosition(ballRow, ballCol),
-            Quaternion.identity
-        );
-        StartCoroutine(ThrowOffScreen(loser, attacker));
-
-        possession = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
-
-// ── NEW: trigger penalty if the ball is now on that side’s goal row ──
-bool atGoalRow =
-    (possession == Actor.Player && ballRow == gridManager.rows - 1) ||
-    (possession == Actor.AI     && ballRow == 0);
-
-if (atGoalRow)
 {
-    // ThrowOffScreen() is already running; now go straight to penalties
-    StartCoroutine(PenaltySequence(possession));
-    yield break;                           // skip SpawnCharacter/StartNewTurn
-}
-        SpawnCharacter();
-        StartNewTurn();
-        yield break;
+    // 1) 4th dribble under Momentum Limit → back 2 rows
+    if (momentumLimitViolated)
+    {
+        ballRow = Mathf.Clamp(originalRow - 2 * dir, 0, gridManager.rows - 1);
     }
+    // 2) Quit-or-Double penalty → back 2 rows
+    else if (enableModifiers
+          && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble)
+          && attackChoice == matchModifierManager.GetQuitOrDoubleColumn())
+    {
+        ballRow = Mathf.Clamp(originalRow - 2 * dir, 0, gridManager.rows - 1);
+    }
+    // 3) Normal tackle advance
     else
     {
-        if (enableModifiers) matchModifierManager.OnAdvance();
-        ShowMessage(attacker == Actor.Player ? "Dribble!" : "Dribbled!", 2f);
-        (attacker == Actor.Player ? feedbackPlayerAdvance : feedbackOpponentAdvance)?.PlayFeedbacks();
-
+        ballRow = targetRow;
     }
+
+    ballCol = attackChoice;
+    yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
+
+    ShowMessage(attacker == Actor.Player ? "Tackled!" : "Tackle!", 2f);
+    (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
+    if (enableModifiers) matchModifierManager.OnTackle(attacker);
+
+    var loserPrefab = (attacker == Actor.Player) ? aiLosePrefab : playerLosePrefab;
+    var loser = Instantiate(
+        loserPrefab,
+        gridManager.GetCellPosition(ballRow, ballCol),
+        Quaternion.identity
+    );
+    StartCoroutine(ThrowOffScreen(loser, attacker));
+
+    possession = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
+
+    // ── trigger penalty if we just reached a goal row ──
+    bool atGoalRow =
+        (possession == Actor.Player && ballRow == gridManager.rows - 1) ||
+        (possession == Actor.AI     && ballRow == 0);
+
+    if (atGoalRow)
+    {
+        StartCoroutine(PenaltySequence(possession));
+        yield break;
+    }
+
+    SpawnCharacter();
+    StartNewTurn();
+    yield break;
+}
+else
+{
+    if (enableModifiers) matchModifierManager.OnAdvance();
+    ShowMessage(attacker == Actor.Player ? "Dribble!" : "Dribbled!", 2f);
+    (attacker == Actor.Player ? feedbackPlayerAdvance : feedbackOpponentAdvance)?.PlayFeedbacks();
+}
+
 
     // 5) Column Loyalty
     int loyaltyBoost = 0;
@@ -776,30 +793,46 @@ private IEnumerator PenaltySequence(Actor attacker)
     }
 
     private void HighlightRow(int tr, Actor attacker)
+{
+    ClearHighlights();
+    _allowedColumns.Clear();
+    if (tr < 0 || tr >= gridManager.rows) return;
+
+    // 1) Build the base allowed columns list
+    var baseCols = restrictToAdjacent
+        ? GetAdjacentColumns()
+        : Enumerable.Range(0, gridManager.cols).ToList();
+
+    if (enablePowerUps)
+        baseCols = baseCols.FindAll(c => powerUpManager.GetAllowedColumns(attacker.ToString()).Contains(c));
+
+    if (enableModifiers && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
+        baseCols.Remove(matchModifierManager.GetLastUsedColumn(attacker));
+
+    if (enableModifiers && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn))
+        baseCols.Remove(matchModifierManager.GetLockedColumn());
+
+    // 2) Pulse-highlight all those columns in yellow
+    foreach (int c in baseCols)
     {
-        ClearHighlights();
-        _allowedColumns.Clear();
-        if (tr < 0 || tr >= gridManager.rows) return;
+        _allowedColumns.Add(c);
+        gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
+    }
 
-        var baseCols = restrictToAdjacent
-            ? GetAdjacentColumns()
-            : Enumerable.Range(0, gridManager.cols).ToList();
-
-        if (enablePowerUps)
-            baseCols = baseCols.FindAll(c => powerUpManager.GetAllowedColumns(attacker.ToString()).Contains(c));
-
-        if (enableModifiers && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
-            baseCols.Remove(matchModifierManager.GetLastUsedColumn(attacker));
-
-        if (enableModifiers && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn))
-            baseCols.Remove(matchModifierManager.GetLockedColumn());
-
-        foreach (int c in baseCols)
+    // 3) If the next dribble (for whoever is attacking) will hit the 4th-dribble penalty, overlay red
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
+        && !matchModifierManager.CanAdvance())
+    {
+        foreach (int c in _allowedColumns)
         {
-            _allowedColumns.Add(c);
-            gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
+            var sr = gridManager.cells[tr, c].GetComponent<SpriteRenderer>();
+            // 50% opaque red tint on top of the yellow pulse
+            sr.color = new Color(1f, 0f, 0f, 0.5f);
         }
     }
+}
+
 
     private void ClearHighlights()
     {
