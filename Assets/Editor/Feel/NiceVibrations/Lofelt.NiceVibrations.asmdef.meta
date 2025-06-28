@@ -9,6 +9,6 @@ AssetOrigin:
   serializedVersion: 1
   productId: 183370
   packageName: Feel
-  packageVersion: 5.5
-  assetPath: Assets/Feel/NiceVibrations/Lofelt.NiceVibrations.asmdef
-  uploadId: 759320
+  packageVersion: 5.6
+  assetPath: Assets/Editor/Feel/NiceVibrations/Lofelt.NiceVibrations.asmdef
+  uploadId: 767731

@@ -9,6 +9,6 @@ AssetOrigin:
   serializedVersion: 1
   productId: 183370
   packageName: Feel
-  packageVersion: 5.5
-  assetPath: Assets/Feel/NiceVibrations/Demo/Common/Prefabs/HorizontalSliderComponent.prefab
-  uploadId: 759320
+  packageVersion: 5.6
+  assetPath: Assets/Editor/Feel/NiceVibrations/Demo/Common/Prefabs/HorizontalSliderComponent.prefab
+  uploadId: 767731
