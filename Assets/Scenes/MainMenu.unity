@@ -202,7 +202,7 @@ MonoBehaviour:
   playButton: {fileID: 1720805164}
   errorText: {fileID: 1766071264}
   currencyId: GOLD
-  entryFee: 1
+  entryFee: 5
   gameSceneName: GameScene
 --- !u!1 &594628554
 GameObject:
