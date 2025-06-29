@@ -19,6 +19,7 @@ public class MatchModifierDefinition : ScriptableObject
         FlightPath,
         GridMastery,
         DynamicCorridor,
+        CounterStrike, 
         QuitOrDouble 
         // (you can add more here later)
     }

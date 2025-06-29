@@ -67,7 +67,11 @@ public class MatchModifierManager : MonoBehaviour
     private bool _dynamicCorridorReadyPlayer = false;
     private bool _dynamicCorridorReadyAI     = false;
    
-
+// — Counter Strike state —
+    private int  _playerTackleCount           = 0;
+    private int  _aiTackleCount               = 0;
+    private bool _counterStrikeReadyPlayer    = false;
+    private bool _counterStrikeReadyAI        = false;
     void Awake()
     {
         _gridManager = Object.FindFirstObjectByType<GridManager>();
@@ -97,9 +101,13 @@ public class MatchModifierManager : MonoBehaviour
         _dribbleCounts.Clear();
         _gridMasteryReady = false;
         _playerDiagonalCount          = 0;
-    _aiDiagonalCount              = 0;
-    _dynamicCorridorReadyPlayer   = false;
-    _dynamicCorridorReadyAI       = false;
+        _aiDiagonalCount              = 0;
+        _dynamicCorridorReadyPlayer   = false;
+        _dynamicCorridorReadyAI       = false;
+        _playerTackleCount        = 0;
+        _aiTackleCount            = 0;
+        _counterStrikeReadyPlayer = false;
+        _counterStrikeReadyAI     = false;
 
 
         for (int i = 0; i < 2 && pool.Count > 0; i++)
@@ -107,6 +115,7 @@ public class MatchModifierManager : MonoBehaviour
             int idx = Random.Range(0, pool.Count);
             var mod = pool[idx];
             activeModifiers.Add(mod);
+            Debug.Log($"[Modifiers] Added {mod.modifierName} ({mod.type})");
 
             // remove that modifier from pool
             pool.RemoveAt(idx);
@@ -333,4 +342,51 @@ public void ConsumeDynamicCorridor(GameManager.Actor actor)
         _aiDiagonalCount = 0;
     }
 }
+
+/// <summary>
+/// Call this whenever a tackle succeeds.
+/// </summary>
+public void OnCounterTackle(GameManager.Actor actor)
+{
+    if (!HasModifier(MatchModifierDefinition.ModifierType.CounterStrike)) return;
+
+    if (actor == GameManager.Actor.Player)
+    {
+        _playerTackleCount++;
+        if (_playerTackleCount >= 2)    // after 2 tackles, the next one is empowered
+            _counterStrikeReadyPlayer = true;
+    }
+    else
+    {
+        _aiTackleCount++;
+        if (_aiTackleCount >= 2)
+            _counterStrikeReadyAI = true;
+    }
+}
+
+/// <summary>
+/// Returns true if the next tackle by this actor is a Counter Strike.
+/// </summary>
+public bool IsCounterStrikeReady(GameManager.Actor actor)
+    => actor == GameManager.Actor.Player
+        ? _counterStrikeReadyPlayer
+        : _counterStrikeReadyAI;
+
+/// <summary>
+/// Consume the Counter Strike bonus and reset the count for that actor.
+/// </summary>
+public void ConsumeCounterStrike(GameManager.Actor actor)
+{
+    if (actor == GameManager.Actor.Player)
+    {
+        _counterStrikeReadyPlayer = false;
+        _playerTackleCount        = 0;
+    }
+    else
+    {
+        _counterStrikeReadyAI     = false;
+        _aiTackleCount            = 0;
+    }
+}
+
 }

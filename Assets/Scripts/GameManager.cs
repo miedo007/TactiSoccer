@@ -385,6 +385,12 @@ private void InitializeMatch()
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.DynamicCorridor)
         && matchModifierManager.IsDynamicCorridorReady(attacker);
 
+    // ── Counter Strike flag ──
+    bool counterStrikeActive =
+    enableModifiers
+    && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.CounterStrike)
+    && matchModifierManager.IsCounterStrikeReady(attacker);
+
     // 1) Reveal picks
     int playerPick = (possession == Actor.Player) ? attackChoice : defendChoice;
     int aiPick     = (possession == Actor.Player) ? defendChoice : attackChoice;
@@ -447,19 +453,27 @@ private void InitializeMatch()
     // 4) Tackle or Dribble
     if (tackle)
 {
-    // 1) 4th dribble under Momentum Limit → back 2 rows
-    if (momentumLimitViolated)
+    // 1) Counter Strike: armed tackle → advance 2 rows
+    if (counterStrikeActive)
+    {
+        //ShowModifier("⚔ Counter Strike! → 2-row push", 1.5f);
+        ballRow = Mathf.Clamp(originalRow - 3 * dir, 0, gridManager.rows - 1);
+        Debug.Log($"Counter Strike: origRow={originalRow}, dir={dir}, newRow={originalRow+2*dir}");
+       
+    }
+    // 2) 4th dribble under Momentum Limit → back 2 rows
+    else if (momentumLimitViolated)
     {
         ballRow = Mathf.Clamp(originalRow - 2 * dir, 0, gridManager.rows - 1);
     }
-    // 2) Quit-or-Double penalty → back 2 rows
+    // 3) Quit-or-Double penalty → back 2 rows
     else if (enableModifiers
-          && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble)
-          && attackChoice == matchModifierManager.GetQuitOrDoubleColumn())
+             && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble)
+             && attackChoice == matchModifierManager.GetQuitOrDoubleColumn())
     {
         ballRow = Mathf.Clamp(originalRow - 2 * dir, 0, gridManager.rows - 1);
     }
-    // 3) Normal tackle advance
+    // 4) Normal tackle → advance one row
     else
     {
         ballRow = targetRow;
@@ -468,10 +482,24 @@ private void InitializeMatch()
     ballCol = attackChoice;
     yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
 
+    // Feedback
     ShowMessage(attacker == Actor.Player ? "Tackled!" : "Tackle!", 2f);
     (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
+
+    // Counter Strike state: consume if used, otherwise count this tackle
+    if (counterStrikeActive)
+    {
+        matchModifierManager.ConsumeCounterStrike(attacker);
+    }
+    else if (enableModifiers)
+    {
+        matchModifierManager.OnCounterTackle(attacker);
+    }
+
+    // Reset momentum, burned column, etc.
     if (enableModifiers) matchModifierManager.OnTackle(attacker);
 
+    // Spawn loser prefab and fling off‐screen
     var loserPrefab = (attacker == Actor.Player) ? aiLosePrefab : playerLosePrefab;
     var loser = Instantiate(
         loserPrefab,
@@ -480,9 +508,10 @@ private void InitializeMatch()
     );
     StartCoroutine(ThrowOffScreen(loser, attacker));
 
+    // Swap possession
     possession = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
 
-    // ── trigger penalty if we just reached a goal row ──
+    // Penalty if at goal row
     bool atGoalRow =
         (possession == Actor.Player && ballRow == gridManager.rows - 1) ||
         (possession == Actor.AI     && ballRow == 0);
@@ -493,45 +522,33 @@ private void InitializeMatch()
         yield break;
     }
 
+    // Continue match
     SpawnCharacter();
     StartNewTurn();
     yield break;
 }
 else
 {
+    // dribble branch remains unchanged
     if (enableModifiers)
     {
         matchModifierManager.OnAdvance();
-
-        // track Grid Mastery dribbles
         matchModifierManager.OnDribble(attackChoice);
-
-        // track Dynamic Corridor dribbles **only** if this was a diagonal move
         if (attackChoice != originalCol)
             matchModifierManager.OnDiagonalDribble(attacker);
     }
 
-    // if Grid Mastery was armed, consume it now
     if (gridMasteryActive)
-    {
         matchModifierManager.ConsumeGridMastery();
-    }
-
-    // if Dynamic Corridor was armed, consume it now
     if (dynamicCorridorActive)
-    {
         matchModifierManager.ConsumeDynamicCorridor(attacker);
-    }
 
-    // normal UI feedback
     ShowMessage(attacker == Actor.Player ? "Dribble!" : "Dribbled!", 2f);
     (attacker == Actor.Player
         ? feedbackPlayerAdvance
         : feedbackOpponentAdvance
     )?.PlayFeedbacks();
 }
-
-
 
     // 5) Column Loyalty
     int loyaltyBoost = 0;
@@ -891,6 +908,17 @@ private IEnumerator PenaltySequence(Actor attacker)
         }
     }
     
+    // Counter Strike warning (purple)
+if (enableModifiers
+    && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.CounterStrike)
+    && matchModifierManager.IsCounterStrikeReady(attacker))
+{
+    foreach (int c in _allowedColumns)
+    {
+        var sr = gridManager.cells[tr, c].GetComponent<SpriteRenderer>();
+        sr.color = new Color(0.5f, 0f, 0.5f, 0.5f);
+    }
+}
 }
 
 

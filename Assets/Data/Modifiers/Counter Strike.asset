@@ -10,10 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a51caa599e9a02042870821e2c921f57, type: 3}
-  m_Name: DynamicCorridor
+  m_Name: Counter Strike
   m_EditorClassIdentifier: 
-  modifierName: Dynamic Corridor
-  description: After three total diagonal dribbles in a match, your next dribble
-    advances you two rows instead of one.
+  modifierName: Quit Or Double
+  description: Advance 2 on Dribble, go back 2 on Tackle
   icon: {fileID: 0}
   type: 7
