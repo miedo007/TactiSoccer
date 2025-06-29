@@ -426,7 +426,7 @@ private void InitializeMatch()
         && matchModifierManager.IsMirrorClash(attackChoice, defendChoice, ballCol))
     {
         matchModifierManager.ApplyMirrorClash(ref ballRow, attacker);
-        ShowModifier("Mirror Clash! Ball moves back!", 2f);
+        ShowModifier("Mirror Clash! \nBall moves back!", 3f);
         yield return new WaitForSeconds(afterAnimDelay);
         ClearHighlights();
         yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
@@ -439,7 +439,7 @@ private void InitializeMatch()
     if (momentumLimitViolated && !tackle)
     {
         // you advanced on the 4th dribble → straight to penalties
-        ShowModifier("Momentum Limit! Penalty Shootout!", 2f);
+        ShowModifier("Momentum Limit! \nPenalty Shootout!", 3f);
         (attacker == Actor.Player
             ? feedbackPlayerAdvance
             : feedbackOpponentAdvance
@@ -457,9 +457,9 @@ private void InitializeMatch()
     // 1) Counter Strike: armed tackle → advance 2 rows
     if (counterStrikeActive)
     {
-        //ShowModifier("⚔ Counter Strike! → 2-row push", 1.5f);
+        ShowModifier("Counter Strike! \n2 rows push back", 3);
         ballRow = Mathf.Clamp(originalRow - 3 * dir, 0, gridManager.rows - 1);
-        Debug.Log($"Counter Strike: origRow={originalRow}, dir={dir}, newRow={originalRow+2*dir}");
+        //Debug.Log($"Counter Strike: origRow={originalRow}, dir={dir}, newRow={originalRow+2*dir}");
        
     }
     // 2) 4th dribble under Momentum Limit → back 2 rows
@@ -484,7 +484,7 @@ private void InitializeMatch()
     yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
 
     // Feedback
-    ShowMessage(attacker == Actor.Player ? "Tackled!" : "Tackle!", 2f);
+    ShowMessage(attacker == Actor.Player ? "Tackled!" : "Tackle!", 3f);
     (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
 
     // Counter Strike state: consume if used, otherwise count this tackle
@@ -540,11 +540,18 @@ else
     }
 
     if (gridMasteryActive)
+    {
         matchModifierManager.ConsumeGridMastery();
-    if (dynamicCorridorActive)
-        matchModifierManager.ConsumeDynamicCorridor(attacker);
+        ShowModifier("Grid Mastery! \nFull-row dribble", 3f);
+    }
 
-    ShowMessage(attacker == Actor.Player ? "Dribble!" : "Dribbled!", 2f);
+    if (dynamicCorridorActive)
+    {
+        matchModifierManager.ConsumeDynamicCorridor(attacker);
+        ShowModifier("Dynamic Corridor! \nExtra 2 rows advance", 3f);
+    }
+
+    ShowMessage(attacker == Actor.Player ? "Dribble!" : "Dribbled!", 3f);
     (attacker == Actor.Player
         ? feedbackPlayerAdvance
         : feedbackOpponentAdvance
@@ -559,7 +566,7 @@ else
     {
         loyaltyBoost = matchModifierManager.GetLoyaltyBoost(attacker, attackChoice);
         if (loyaltyBoost > 0)
-            ShowModifier("Column Loyalty! Extra row!", 2f);
+            ShowModifier("Column Loyalty! \nExtra row!", 3f);
     }
 
     // 6) Flight Path
@@ -570,7 +577,7 @@ else
         && attackChoice == matchModifierManager.GetFastLaneColumn())
     {
         flightBoost = 1;
-        ShowModifier("Flight Path! Double Advance", 2f);
+        ShowModifier("Flight Path! \nDouble Advance", 3f);
     }
 
     // 7) Quit-or-Double boost
@@ -581,7 +588,7 @@ else
         && attackChoice == matchModifierManager.GetQuitOrDoubleColumn())
     {
         quitBoost = 1;
-        ShowModifier("Quit or Double! ×2 rows!", 2f);
+        ShowModifier("Quit or Double! \n2 Extra rows!", 3f);
     }
 
     // 8) Burned Column update
