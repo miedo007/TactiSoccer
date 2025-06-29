@@ -1070,12 +1070,20 @@ private IEnumerator AwardGoldCoroutine()
         }
 
         if (rulesText != null)
-        {
-            var sb = new System.Text.StringBuilder();
-            foreach (var mod in matchModifierManager.activeModifiers)
-                sb.AppendLine($"<b>{mod.modifierName}</b>: {mod.description}");
-            rulesText.text = sb.ToString();
-        }
+{
+    var sb = new System.Text.StringBuilder();
+    foreach (var mod in matchModifierManager.activeModifiers)
+    {
+        // 1) Bold name on its own line, no colon
+        sb.AppendLine($"<b>{mod.modifierName}</b>");
+        // 2) Description on the next line, plain text
+        sb.AppendLine(mod.description);
+        // 3) Blank line to separate entries
+        sb.AppendLine();
+    }
+    rulesText.text = sb.ToString();
+}
+
     }
 
 } // ← final closing brace for GameManager
