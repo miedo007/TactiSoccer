@@ -18,6 +18,7 @@ public class MatchModifierDefinition : ScriptableObject
         ColumnLoyalty,
         FlightPath,
         GridMastery,
+        DynamicCorridor,
         QuitOrDouble 
         // (you can add more here later)
     }

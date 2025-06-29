@@ -368,18 +368,22 @@ private void InitializeMatch()
     Actor attacker = possession;
     bool tackle = (attackChoice == defendChoice);
     int originalRow = ballRow;
+    int originalCol = ballCol;
     int dir = (attacker == Actor.Player) ? +1 : -1;
 
 // 0) Check if this is the 4th dribble under MomentumLimit
     bool momentumLimitViolated = enableModifiers
     && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
     && !matchModifierManager.CanAdvance();
-
     // track Grid Mastery for this turn
-    bool gridMasteryActive = 
-    enableModifiers
-    && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.GridMastery)
-    && matchModifierManager.IsGridMasteryReady();
+    bool gridMasteryActive = enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.GridMastery)
+        && matchModifierManager.IsGridMasteryReady();
+
+    // track dynamic Corridor for this turn
+    bool dynamicCorridorActive = enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.DynamicCorridor)
+        && matchModifierManager.IsDynamicCorridorReady(attacker);
 
     // 1) Reveal picks
     int playerPick = (possession == Actor.Player) ? attackChoice : defendChoice;
@@ -495,18 +499,38 @@ private void InitializeMatch()
 }
 else
 {
-    if (enableModifiers) 
+    if (enableModifiers)
+    {
         matchModifierManager.OnAdvance();
 
-    // track dribble for Grid Mastery
-    matchModifierManager.OnDribble(attackChoice);  // ← semicolon here
+        // track Grid Mastery dribbles
+        matchModifierManager.OnDribble(attackChoice);
 
+        // track Dynamic Corridor dribbles **only** if this was a diagonal move
+        if (attackChoice != originalCol)
+            matchModifierManager.OnDiagonalDribble(attacker);
+    }
+
+    // if Grid Mastery was armed, consume it now
     if (gridMasteryActive)
+    {
         matchModifierManager.ConsumeGridMastery();
+    }
 
+    // if Dynamic Corridor was armed, consume it now
+    if (dynamicCorridorActive)
+    {
+        matchModifierManager.ConsumeDynamicCorridor(attacker);
+    }
+
+    // normal UI feedback
     ShowMessage(attacker == Actor.Player ? "Dribble!" : "Dribbled!", 2f);
-    (attacker == Actor.Player ? feedbackPlayerAdvance : feedbackOpponentAdvance)?.PlayFeedbacks();
+    (attacker == Actor.Player
+        ? feedbackPlayerAdvance
+        : feedbackOpponentAdvance
+    )?.PlayFeedbacks();
 }
+
 
 
     // 5) Column Loyalty
@@ -543,19 +567,22 @@ else
     }
 
     // 8) Burned Column update
-    if (enableModifiers)
-        matchModifierManager.SetLastUsedColumn(attacker, attackChoice);
+if (enableModifiers)
+    matchModifierManager.SetLastUsedColumn(attacker, attackChoice);
 
-    yield return new WaitForSeconds(tackleAnimDuration);
-    ClearHighlights();
+yield return new WaitForSeconds(tackleAnimDuration);
+ClearHighlights();
 
-    // 9) Advance with all boosts
-    {
-        int totalBoost = loyaltyBoost + flightBoost + quitBoost;
-        int newRow = ballRow + dir + (totalBoost * dir);
-        ballRow = Mathf.Clamp(newRow, 0, gridManager.rows - 1);
-        ballCol = attackChoice;
-    }
+// 9) Advance with all boosts (including Dynamic Corridor)
+{
+    // compute the extra row if Dynamic Corridor is armed
+    int dynamicBoost = dynamicCorridorActive ? 1 : 0;
+
+    int totalBoost = loyaltyBoost + flightBoost + quitBoost + dynamicBoost;
+    int newRow = ballRow + dir + (totalBoost * dir);
+    ballRow = Mathf.Clamp(newRow, 0, gridManager.rows - 1);
+    ballCol = attackChoice;
+}
 
     yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
 
@@ -812,13 +839,12 @@ private IEnumerator PenaltySequence(Actor attacker)
     _allowedColumns.Clear();
     if (tr < 0 || tr >= gridManager.rows) return;
 
-    // ── Grid Mastery check ──
-    bool gridMasteryActive =
-        enableModifiers
+    // Grid Mastery check (allows full-row if ready)
+    bool gridMasteryActive = enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.GridMastery)
-        && matchModifierManager.IsGridMasteryReady();  // ← semicolon here
+        && matchModifierManager.IsGridMasteryReady();
 
-    // 1) Build the base allowed columns list (full row if Grid Mastery, else adjacency)
+    // Build allowed columns
     var baseCols = gridMasteryActive
         ? Enumerable.Range(0, gridManager.cols).ToList()
         : (restrictToAdjacent
@@ -842,7 +868,7 @@ private IEnumerator PenaltySequence(Actor attacker)
         gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
     }
 
-    // 3) Momentum Limit warning (unchanged)
+    // Momentum Limit warning (red)
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
         && !matchModifierManager.CanAdvance())
@@ -853,6 +879,18 @@ private IEnumerator PenaltySequence(Actor attacker)
             sr.color = new Color(1f, 0f, 0f, 0.5f);
         }
     }
+ // Dynamic Corridor warning (blue)
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.DynamicCorridor)
+        && matchModifierManager.IsDynamicCorridorReady(attacker))
+    {
+        foreach (int c in _allowedColumns)
+        {
+            var sr = gridManager.cells[tr, c].GetComponent<SpriteRenderer>();
+            sr.color = new Color(0f, 0f, 1f, 0.5f);
+        }
+    }
+    
 }
 
 

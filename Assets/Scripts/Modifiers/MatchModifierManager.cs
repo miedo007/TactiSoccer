@@ -60,6 +60,12 @@ public class MatchModifierManager : MonoBehaviour
     // — Grid Mastery state —
    private Dictionary<int,int> _dribbleCounts = new Dictionary<int,int>();
    private bool _gridMasteryReady = false;
+
+   // — Dynamic Corridor  state —
+   private int _playerDiagonalCount = 0;
+    private int _aiDiagonalCount     = 0;
+    private bool _dynamicCorridorReadyPlayer = false;
+    private bool _dynamicCorridorReadyAI     = false;
    
 
     void Awake()
@@ -90,6 +96,10 @@ public class MatchModifierManager : MonoBehaviour
         _quitOrDoubleColumn    = -1;
         _dribbleCounts.Clear();
         _gridMasteryReady = false;
+        _playerDiagonalCount          = 0;
+    _aiDiagonalCount              = 0;
+    _dynamicCorridorReadyPlayer   = false;
+    _dynamicCorridorReadyAI       = false;
 
 
         for (int i = 0; i < 2 && pool.Count > 0; i++)
@@ -287,4 +297,40 @@ public class MatchModifierManager : MonoBehaviour
         _dribbleCounts.Clear();
     
     }
+    /// <summary>
+/// Call this whenever a dribble succeeds from a different column than the last ball position.
+/// </summary>
+public void OnDiagonalDribble(GameManager.Actor actor)
+{
+    if (!HasModifier(MatchModifierDefinition.ModifierType.DynamicCorridor)) return;
+    if (actor == GameManager.Actor.Player)
+    {
+        _playerDiagonalCount++;
+        if (_playerDiagonalCount >= 3) _dynamicCorridorReadyPlayer = true;
+    }
+    else
+    {
+        _aiDiagonalCount++;
+        if (_aiDiagonalCount >= 3) _dynamicCorridorReadyAI = true;
+    }
+}
+
+public bool IsDynamicCorridorReady(GameManager.Actor actor)
+    => actor == GameManager.Actor.Player
+         ? _dynamicCorridorReadyPlayer
+         : _dynamicCorridorReadyAI;
+
+public void ConsumeDynamicCorridor(GameManager.Actor actor)
+{
+    if (actor == GameManager.Actor.Player)
+    {
+        _dynamicCorridorReadyPlayer = false;
+        _playerDiagonalCount = 0;
+    }
+    else
+    {
+        _dynamicCorridorReadyAI = false;
+        _aiDiagonalCount = 0;
+    }
+}
 }
