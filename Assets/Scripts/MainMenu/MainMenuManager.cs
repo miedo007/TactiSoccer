@@ -79,7 +79,7 @@ public class MainMenuManager : MonoBehaviour
 
         // Icon + entry‐fee label
         var def = CozyDatabase.Instance.GetCozyCurrency(currencyId);
-        if (def?.Icon != null) entryFeeIcon.sprite = def.Icon;
+        //if (def?.Icon != null) entryFeeIcon.sprite = def.Icon;
         entryFeeText.text = $"Entry Fee: {entryFee}";
 
         // Force fresh balances from the server
