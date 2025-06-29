@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a51caa599e9a02042870821e2c921f57, type: 3}
   m_Name: Counter Strike
   m_EditorClassIdentifier: 
-  modifierName: Quit Or Double
-  description: Advance 2 on Dribble, go back 2 on Tackle
+  modifierName: Counter Strike
+  description: After two successful tackles, the next tackle by that side pushes
+    the ball two rows instead of one.
   icon: {fileID: 0}
-  type: 7
+  type: 8
