@@ -883,10 +883,10 @@ MonoBehaviour:
   - {fileID: 2079181847}
   penaltyBall: {fileID: 1220085118}
   goalkeeperImage: {fileID: 105800587}
-  playerGKIdleSprite: {fileID: -934672847630249352, guid: a70d71d6cf8e7ff43b6bd05117465d9c, type: 3}
-  playerGKJumpSprite: {fileID: -934672847630249352, guid: a70d71d6cf8e7ff43b6bd05117465d9c, type: 3}
-  aiGKIdleSprite: {fileID: -2845747556652654866, guid: 02c11daf571965648860da8e6f409db0, type: 3}
-  aiGKJumpSprite: {fileID: -2845747556652654866, guid: 02c11daf571965648860da8e6f409db0, type: 3}
+  playerGKIdleSprite: {fileID: -4963995237401066772, guid: c7c2188501eb0754c86c8d55158c125d, type: 3}
+  playerGKJumpSprite: {fileID: -4963995237401066772, guid: c7c2188501eb0754c86c8d55158c125d, type: 3}
+  aiGKIdleSprite: {fileID: 1274518156076962587, guid: 4e6b258f6f4cff64ea857db1034bc09d, type: 3}
+  aiGKJumpSprite: {fileID: 1274518156076962587, guid: 4e6b258f6f4cff64ea857db1034bc09d, type: 3}
   goalkeeperIdleAnchor: {fileID: 855036019}
   goldText: {fileID: 1958302146}
   messageText: {fileID: 1107994776}
@@ -2378,8 +2378,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   allModifiers:
-  - {fileID: 11400000, guid: a90915b8549b5e7489c15eebb6d55aa6, type: 2}
-  - {fileID: 11400000, guid: c02cecc1435931843bc2d8f9c9489712, type: 2}
+  - {fileID: 11400000, guid: c56f76b35d03b7948b349a5b35197bff, type: 2}
   activeModifiers: []
 --- !u!1 &476552956
 GameObject:
@@ -2733,7 +2732,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: -163.0598, y: -334.00937, z: -157.79959, w: -262.99945}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -7384,7 +7383,7 @@ GameObject:
   - component: {fileID: 1400638887}
   - component: {fileID: 1400638886}
   m_Layer: 5
-  m_Name: Text (TMP)
+  m_Name: ModifierText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -7406,7 +7405,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -239.80963, y: 584}
+  m_AnchoredPosition: {x: -239.80963, y: -98}
   m_SizeDelta: {x: 679.6193, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1400638886
@@ -9216,7 +9215,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: -5858793103281886802, guid: 7d93019dfce691b48828a93e85128e61, type: 3}
+  m_Sprite: {fileID: 1983940459239348344, guid: 0a30e03ab9ae6d941bbfbfe1cdc2029a, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
