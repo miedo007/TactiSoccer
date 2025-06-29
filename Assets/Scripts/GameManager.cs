@@ -44,6 +44,7 @@ public class GameManager : MonoBehaviour
     [Header("UI Text")]
     public TextMeshProUGUI goldText;
     public TextMeshProUGUI messageText;
+    public TextMeshProUGUI goalText;
 
     [Header("Modifier UI")]
     [Tooltip("Separate text field to display modifier alerts")]
@@ -666,6 +667,21 @@ ClearHighlights();
         _clearModifierCoroutine = null;
     }
 
+    private Coroutine _clearGoalCoroutine;
+private void ShowGoalMessage(string msg, float duration)
+{
+    if (_clearGoalCoroutine != null) StopCoroutine(_clearGoalCoroutine);
+    goalText.text = msg;
+    _clearGoalCoroutine = StartCoroutine(ClearGoalAfter(duration));
+}
+
+private IEnumerator ClearGoalAfter(float t)
+{
+    yield return new WaitForSeconds(t);
+    goalText.text = "";
+    _clearGoalCoroutine = null;
+}
+
     private void ClearRevealMarkers()
     {
         foreach (var m in _revealMarkers) Destroy(m);
@@ -800,7 +816,7 @@ private IEnumerator PenaltySequence(Actor attacker)
     bool saved = (penaltyAttackChoice == penaltyDefendChoice);
     if (saved)
     {
-        ShowModifier(attacker == Actor.Player ? "Countered" : "Saved", 2f);
+        ShowMessage(attacker == Actor.Player ? "Countered!" : "Saved!", 2f);
         (attacker == Actor.Player ? feedbackPenaltyCounter : feedbackPenaltySaved)?.PlayFeedbacks();
         possession = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
 
@@ -822,13 +838,13 @@ private IEnumerator PenaltySequence(Actor attacker)
 
         if (attacker == Actor.Player)
         {
-            ShowMessage("GOAAAAAL! You Win!", 3f);
+            ShowGoalMessage("GOAAAAAL!\nYou Win!", 3f);
             feedbackGoalForPlayer?.PlayFeedbacks();
             feedbackMatchWin?.PlayFeedbacks();
         }
         else
         {
-            ShowMessage("GOAAAAAL! You Lose!", 3f);
+            ShowGoalMessage("GOAAAAAL!\nYou Lose!", 3f);
             feedbackGoalAgainst?.PlayFeedbacks();
             feedbackMatchLose?.PlayFeedbacks();
         }
@@ -958,6 +974,7 @@ if (enableModifiers
     // -------------------------------------------------------
     private void UpdateGoldUI()
     {
+        
         int balance = CozyAPI.Instance.GetCurrencyValue(currencyId);
         goldText.text = $"Gold: {balance}";
     }
