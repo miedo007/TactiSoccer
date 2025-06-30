@@ -18,7 +18,8 @@ public class MatchModifierManager : MonoBehaviour
         { MatchModifierDefinition.ModifierType.BurnedColumn,
             new List<MatchModifierDefinition.ModifierType> {
                 MatchModifierDefinition.ModifierType.ColumnLoyalty,
-                MatchModifierDefinition.ModifierType.LockedColumn
+                MatchModifierDefinition.ModifierType.LockedColumn,
+                MatchModifierDefinition.ModifierType.MirrorClash
             }
         },
         { MatchModifierDefinition.ModifierType.ColumnLoyalty,
@@ -32,6 +33,12 @@ public class MatchModifierManager : MonoBehaviour
                 MatchModifierDefinition.ModifierType.BurnedColumn
             }
         },
+    { MatchModifierDefinition.ModifierType.MirrorClash,
+            new List<MatchModifierDefinition.ModifierType> {
+                MatchModifierDefinition.ModifierType.BurnedColumn
+            }
+        },
+
         // you can add QuitOrDouble incompatibilities here if needed
     };
 
