@@ -1516,7 +1516,7 @@ MonoBehaviour:
           ButtonText: 
         Owner: {fileID: 1720805165}
         DebugActive: 0
-        SquashAndStretchTarget: {fileID: 2126248748}
+        SquashAndStretchTarget: {fileID: 1720805162}
         Mode: 0
         Axis: 3
         AnimateScaleDuration: 0.2
