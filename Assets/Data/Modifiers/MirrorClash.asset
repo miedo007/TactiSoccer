@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: MirrorClash
   m_EditorClassIdentifier: 
   modifierName: Mirror Clash
-  description: if attacker and defender pick symmetrical columns, the ball moves
+  description: If attacker and defender pick symmetrical columns, the ball moves
     back one row.
   icon: {fileID: 5632821140356901969, guid: 99297542e2dcaae48a0c6bcb018d98dc, type: 3}
   type: 2

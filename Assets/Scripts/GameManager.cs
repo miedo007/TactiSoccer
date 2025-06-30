@@ -181,7 +181,7 @@ public class GameManager : MonoBehaviour
         rulesButton.gameObject.SetActive(true);
 
         // hide the panel until the button is clicked
-        rulesPanel.SetActive(false);
+        rulesPanel.SetActive(true);
 
         // wire up the toggle
         rulesButton.onClick.AddListener(() =>

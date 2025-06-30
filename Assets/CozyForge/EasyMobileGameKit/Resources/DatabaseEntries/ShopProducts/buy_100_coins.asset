@@ -15,4 +15,4 @@ MonoBehaviour:
   entryName: 100 Coins
   id: buy_100_coins
   description: 
-  icon: {fileID: 21300000, guid: c63da4c1e0a56a44d931f74b4e63f60d, type: 3}
+  icon: {fileID: -7491132308832048034, guid: c070c406fac2ae346a1cbe88eb569889, type: 3}

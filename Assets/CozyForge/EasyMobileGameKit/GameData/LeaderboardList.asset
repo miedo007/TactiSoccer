@@ -15,5 +15,3 @@ MonoBehaviour:
   Leaderboards:
   - LeaderboardId: highscore
     LeaderboardName: Highest Score
-  - LeaderboardId: matches
-    LeaderboardName: Total Matches
