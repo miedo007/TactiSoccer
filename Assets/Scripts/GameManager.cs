@@ -400,32 +400,66 @@ private void InitializeMatch()
     && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.CounterStrike)
     && matchModifierManager.IsCounterStrikeReady(attacker);
 
-    // 1) Reveal picks
-    int playerPick = (possession == Actor.Player) ? attackChoice : defendChoice;
-    int aiPick     = (possession == Actor.Player) ? defendChoice : attackChoice;
+    // 1) Reveal picks (stamp-drop animation)
+int playerPick = (possession == Actor.Player) ? attackChoice : defendChoice;
+int aiPick     = (possession == Actor.Player) ? defendChoice : attackChoice;
 
-    if (revealMarkerPlayerPrefab != null)
-    {
-        var pm = Instantiate(
-            revealMarkerPlayerPrefab,
-            gridManager.GetCellPosition(targetRow, playerPick),
-            Quaternion.identity
-        );
-        _revealMarkers.Add(pm);
-    }
-    yield return new WaitForSeconds(revealStaggerDelay);
+// How far above the cell you want it to start (tweak in Inspector if you expose it)
+float dropHeight   = 5f;
+float dropDuration = 0.3f;
+float fadeDuration = 0.2f;
 
-    if (revealMarkerAIPrefab != null)
-    {
-        var am = Instantiate(
-            revealMarkerAIPrefab,
-            gridManager.GetCellPosition(targetRow, aiPick),
-            Quaternion.identity
-        );
-        _revealMarkers.Add(am);
-    }
-    yield return new WaitForSeconds(revealStaggerDelay);
-    ClearRevealMarkers();
+// PLAYER marker
+if (revealMarkerPlayerPrefab != null)
+{
+    Vector3 cellPos = gridManager.GetCellPosition(targetRow, playerPick);
+    // start ABOVE the cell
+    var pm = Instantiate(
+        revealMarkerPlayerPrefab,
+        cellPos + Vector3.up * dropHeight,
+        Quaternion.identity
+    );
+    _revealMarkers.Add(pm);
+
+    // make it invisible at first
+    var sr = pm.GetComponent<SpriteRenderer>();
+    if (sr != null) sr.color = new Color(sr.color.r, sr.color.g, sr.color.b, 0f);
+
+    // fade in
+    if (sr != null)
+        sr.DOFade(1f, fadeDuration);
+
+    // drop straight down onto the cell, with a little bounce at the end
+    pm.transform
+      .DOMove(cellPos, dropDuration)
+      .SetEase(Ease.OutBounce);
+}
+
+yield return new WaitForSeconds(revealStaggerDelay);
+
+// AI marker
+if (revealMarkerAIPrefab != null)
+{
+    Vector3 cellPos = gridManager.GetCellPosition(targetRow, aiPick);
+    var am = Instantiate(
+        revealMarkerAIPrefab,
+        cellPos + Vector3.up * dropHeight,
+        Quaternion.identity
+    );
+    _revealMarkers.Add(am);
+
+    var sr = am.GetComponent<SpriteRenderer>();
+    if (sr != null) sr.color = new Color(sr.color.r, sr.color.g, sr.color.b, 0f);
+    if (sr != null)
+        sr.DOFade(1f, fadeDuration);
+
+    am.transform
+      .DOMove(cellPos, dropDuration)
+      .SetEase(Ease.OutBounce);
+}
+
+yield return new WaitForSeconds(revealStaggerDelay);
+ClearRevealMarkers();
 
     // 2) Mirror Clash
     if (!tackle
