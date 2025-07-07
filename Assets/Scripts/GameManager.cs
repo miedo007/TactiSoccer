@@ -83,6 +83,13 @@ public class GameManager : MonoBehaviour
     public TextMeshProUGUI rulesText;
     public Button rulesButton;
 
+    [Header("Tackle Push Settings")]
+    [Tooltip("How many Unity units the tackled piece is knocked back")]
+    public float tacklePushDistance = 2f;
+
+    [Tooltip("Seconds it takes to slide back")]
+    public float tacklePushDuration = 0.4f;
+
     [Header("Movement Settings")]
     [Tooltip("When true, only adjacent+diagonal moves are allowed; when false, all columns are valid.")]
     public bool restrictToAdjacent = true;
@@ -455,51 +462,52 @@ private void InitializeMatch()
     // 4) Tackle or Dribble
 if (tackle)
 {
-    // 1) Compute grid & world positions as before…
+    // 1) Compute new grid coords (unchanged)…
     if (counterStrikeActive)
         ballRow = Mathf.Clamp(originalRow - 3 * dir, 0, gridManager.rows - 1);
     else if (momentumLimitViolated)
         ballRow = Mathf.Clamp(originalRow - 2 * dir, 0, gridManager.rows - 1);
     else if (enableModifiers 
-             && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble)
-             && attackChoice == matchModifierManager.GetQuitOrDoubleColumn())
+         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble)
+         && attackChoice == matchModifierManager.GetQuitOrDoubleColumn())
         ballRow = Mathf.Clamp(originalRow - 2 * dir, 0, gridManager.rows - 1);
     else
         ballRow = targetRow;
     ballCol = attackChoice;
 
+    // 2) Compute positions
     Vector3 cellPos          = gridManager.GetCellPosition(ballRow, ballCol);
     Vector3 attackerStartPos = gridManager.GetCellPosition(originalRow, originalCol);
     Vector3 defenderStartPos = gridManager.GetCellPosition(originalRow + dir, originalCol);
-    float   pushDistance     = 10f; // adjust as needed
-    Vector3 pushPos          = cellPos + Vector3.up * dir * pushDistance;
 
-    // 2) Player (ball) moves in, and we WAIT for it to finish
-    Tween playerMove = ballCtrl.MoveToCell(cellPos);
-    yield return playerMove.WaitForCompletion();
+    // 3) Attacker moves in
+    yield return ballCtrl.MoveToCell(cellPos).WaitForCompletion();
 
-    // 3) Play tackle feedback
+    // 4) Feedback
     ShowMessage(attacker == Actor.Player ? "Tackled!" : "Tackle!", 3f);
     (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
 
-    // 4) Spawn defender and MOVE in, WAITING again
-    GameObject defenderGO = Instantiate(
+    // 5) Spawn & move in the tackler
+    GameObject tacklerGO = Instantiate(
         (attacker == Actor.Player) ? aiPrefab : ballPrefab,
         defenderStartPos,
         Quaternion.identity
     );
-    var defenderCtrl = defenderGO.GetComponent<BallController>();
-    Tween defenderMove = defenderCtrl.MoveToCell(cellPos);
-    yield return defenderMove.WaitForCompletion();
+    var tacklerCtrl = tacklerGO.GetComponent<BallController>();
+    yield return tacklerCtrl.MoveToCell(cellPos).WaitForCompletion();
 
-    // 5) Push the ball out, WAIT for that too
-    Tween pushTween = ballCtrl.MoveToCell(pushPos).SetEase(Ease.OutQuad);
+    // 6) Push the original attacker *farther* and *keep* it there
+    //    using the Inspector-tweakable fields:
+    Vector3 pushPos = cellPos + Vector3.down * dir * tacklePushDistance;
+    Tween pushTween = ballCtrl.transform
+        .DOMove(pushPos, tacklePushDuration)
+        .SetEase(Ease.OutQuad);
     yield return pushTween.WaitForCompletion();
 
-    // 6) Clean up
-    Destroy(defenderGO);
+    // 7) Clean up the tackler pawn
+    Destroy(tacklerGO);
 
-    // 7) Modifier bookkeeping (unchanged)…
+    // 8) Modifier bookkeeping (unchanged)…
     if (counterStrikeActive)
         matchModifierManager.ConsumeCounterStrike(attacker);
     else if (enableModifiers)
@@ -507,7 +515,7 @@ if (tackle)
     if (enableModifiers)
         matchModifierManager.OnTackle(attacker);
 
-    // 8) Swap possession, penalty/goal check, next turn (unchanged)…
+    // 9) Swap possession, goal/penalty check, next turn (unchanged)…
     possession = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
     bool atGoalRow = (possession == Actor.Player && ballRow == gridManager.rows - 1)
                   || (possession == Actor.AI     && ballRow == 0);
@@ -521,7 +529,6 @@ if (tackle)
     StartNewTurn();
     yield break;
 }
-
 
 else
 {

@@ -916,6 +916,8 @@ MonoBehaviour:
   rulesPanel: {fileID: 1572865869}
   rulesText: {fileID: 242679113}
   rulesButton: {fileID: 1062568476}
+  tacklePushDistance: 5
+  tacklePushDuration: 0.4
   restrictToAdjacent: 1
   enablePowerUps: 0
   enableModifiers: 1
@@ -10405,56 +10407,8 @@ Transform:
   - {fileID: 1495929139}
   - {fileID: 1740708611}
   - {fileID: 422905072}
-  - {fileID: 1994958286}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1994958285
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1994958286}
-  - component: {fileID: 1994958287}
-  m_Layer: 0
-  m_Name: TackleController
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1994958286
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1994958285}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1984209959}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1994958287
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1994958285}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3afdcf798b4594800808a8feebd9bb62, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  attacker: {fileID: 0}
-  defender: {fileID: 0}
-  pushDistance: 1
 --- !u!1 &2079181845
 GameObject:
   m_ObjectHideFlags: 0
