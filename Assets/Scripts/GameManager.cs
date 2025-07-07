@@ -8,6 +8,7 @@ using TMPro;
 using MoreMountains.Feedbacks;
 using UnityEngine.SceneManagement;
 using CozyFramework;
+using DG.Tweening;
 
 public class GameManager : MonoBehaviour
 {
@@ -452,82 +453,76 @@ private void InitializeMatch()
 
 
     // 4) Tackle or Dribble
-    if (tackle)
+if (tackle)
 {
-    // 1) Counter Strike: armed tackle → advance 2 rows
+    // 1) Compute grid & world positions as before…
     if (counterStrikeActive)
-    {
-        ShowModifier("Counter Strike! \n2 rows push back", 3);
         ballRow = Mathf.Clamp(originalRow - 3 * dir, 0, gridManager.rows - 1);
-        //Debug.Log($"Counter Strike: origRow={originalRow}, dir={dir}, newRow={originalRow+2*dir}");
-       
-    }
-    // 2) 4th dribble under Momentum Limit → back 2 rows
     else if (momentumLimitViolated)
-    {
         ballRow = Mathf.Clamp(originalRow - 2 * dir, 0, gridManager.rows - 1);
-    }
-    // 3) Quit-or-Double penalty → back 2 rows
-    else if (enableModifiers
+    else if (enableModifiers 
              && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble)
              && attackChoice == matchModifierManager.GetQuitOrDoubleColumn())
-    {
         ballRow = Mathf.Clamp(originalRow - 2 * dir, 0, gridManager.rows - 1);
-    }
-    // 4) Normal tackle → advance one row
     else
-    {
         ballRow = targetRow;
-    }
-
     ballCol = attackChoice;
-    yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
 
-    // Feedback
+    Vector3 cellPos          = gridManager.GetCellPosition(ballRow, ballCol);
+    Vector3 attackerStartPos = gridManager.GetCellPosition(originalRow, originalCol);
+    Vector3 defenderStartPos = gridManager.GetCellPosition(originalRow + dir, originalCol);
+    float   pushDistance     = 10f; // adjust as needed
+    Vector3 pushPos          = cellPos + Vector3.up * dir * pushDistance;
+
+    // 2) Player (ball) moves in, and we WAIT for it to finish
+    Tween playerMove = ballCtrl.MoveToCell(cellPos);
+    yield return playerMove.WaitForCompletion();
+
+    // 3) Play tackle feedback
     ShowMessage(attacker == Actor.Player ? "Tackled!" : "Tackle!", 3f);
     (attacker == Actor.Player ? feedbackTackleLose : feedbackTackleWin)?.PlayFeedbacks();
 
-    // Counter Strike state: consume if used, otherwise count this tackle
-    if (counterStrikeActive)
-    {
-        matchModifierManager.ConsumeCounterStrike(attacker);
-    }
-    else if (enableModifiers)
-    {
-        matchModifierManager.OnCounterTackle(attacker);
-    }
-
-    // Reset momentum, burned column, etc.
-    if (enableModifiers) matchModifierManager.OnTackle(attacker);
-
-    // Spawn loser prefab and fling off‐screen
-    var loserPrefab = (attacker == Actor.Player) ? aiLosePrefab : playerLosePrefab;
-    var loser = Instantiate(
-        loserPrefab,
-        gridManager.GetCellPosition(ballRow, ballCol),
+    // 4) Spawn defender and MOVE in, WAITING again
+    GameObject defenderGO = Instantiate(
+        (attacker == Actor.Player) ? aiPrefab : ballPrefab,
+        defenderStartPos,
         Quaternion.identity
     );
-    StartCoroutine(ThrowOffScreen(loser, attacker));
+    var defenderCtrl = defenderGO.GetComponent<BallController>();
+    Tween defenderMove = defenderCtrl.MoveToCell(cellPos);
+    yield return defenderMove.WaitForCompletion();
 
-    // Swap possession
+    // 5) Push the ball out, WAIT for that too
+    Tween pushTween = ballCtrl.MoveToCell(pushPos).SetEase(Ease.OutQuad);
+    yield return pushTween.WaitForCompletion();
+
+    // 6) Clean up
+    Destroy(defenderGO);
+
+    // 7) Modifier bookkeeping (unchanged)…
+    if (counterStrikeActive)
+        matchModifierManager.ConsumeCounterStrike(attacker);
+    else if (enableModifiers)
+        matchModifierManager.OnCounterTackle(attacker);
+    if (enableModifiers)
+        matchModifierManager.OnTackle(attacker);
+
+    // 8) Swap possession, penalty/goal check, next turn (unchanged)…
     possession = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
-
-    // Penalty if at goal row
-    bool atGoalRow =
-        (possession == Actor.Player && ballRow == gridManager.rows - 1) ||
-        (possession == Actor.AI     && ballRow == 0);
-
+    bool atGoalRow = (possession == Actor.Player && ballRow == gridManager.rows - 1)
+                  || (possession == Actor.AI     && ballRow == 0);
     if (atGoalRow)
     {
         StartCoroutine(PenaltySequence(possession));
         yield break;
     }
 
-    // Continue match
     SpawnCharacter();
     StartNewTurn();
     yield break;
 }
+
+
 else
 {
     // dribble branch remains unchanged

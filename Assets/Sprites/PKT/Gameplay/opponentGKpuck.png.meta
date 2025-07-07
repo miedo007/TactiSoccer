@@ -173,7 +173,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      opponentGKpuck_0: 1274518156076962587
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

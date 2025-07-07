@@ -1,5 +1,5 @@
-using System.Collections;
 using UnityEngine;
+using DG.Tweening;
 using UnityEngine.EventSystems;
 
 [RequireComponent(typeof(BoxCollider2D), typeof(SpriteRenderer))]
@@ -9,10 +9,15 @@ public class Cell : MonoBehaviour, IPointerClickHandler
     private GameManager gm;
     private SpriteRenderer sr;
 
-    // Handle for the pulse coroutine
-    private Coroutine pulseCoroutine;
+    [Header("Pulse Settings")]
+    [Tooltip("Scale multiplier for pulse effect")] public float pulseScale = 1.15f;
+    [Tooltip("Duration for one half of the pulse cycle (scale up or down)")] public float pulseHalfDuration = 0.15f;
 
-    // Store the prefab's initial scale so we can maintain spacing
+    [Header("Highlight Settings")]
+    [Tooltip("Alpha when highlighted")]
+    public float highlightAlpha = 0.5f;
+    [Tooltip("Fade duration for highlight")] public float highlightFadeDuration = 0.1f;
+
     private Vector3 baseScale;
 
     void Awake()
@@ -23,14 +28,10 @@ public class Cell : MonoBehaviour, IPointerClickHandler
         // Capture the starting scale from the prefab
         baseScale = transform.localScale;
 
-        // Make cell fully transparent initially
-        var baseColor = sr.color;
-        sr.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0f);
+        // Start fully transparent
+        sr.color = new Color(sr.color.r, sr.color.g, sr.color.b, 0f);
     }
 
-    /// <summary>
-    /// Initializes the cell with its coordinates and reference to the GameManager.
-    /// </summary>
     public void Initialize(int r, int c, GameManager gameManager)
     {
         row = r;
@@ -38,99 +39,57 @@ public class Cell : MonoBehaviour, IPointerClickHandler
         gm = gameManager;
     }
 
-    /// <summary>
-    /// Handle desktop mouse clicks directly.
-    /// </summary>
-    void OnMouseDown()
-    {
-        OnCellTapped();
-    }
-
-    /// <summary>
-    /// Called by touch‐raycast or UI pointer clicks.
-    /// </summary>
-    public void OnCellTapped()
+    void OnMouseDown() => OnCellTapped();
+    public void OnPointerClick(PointerEventData eventData) => OnCellTapped();
+    private void OnCellTapped()
     {
         if (gm != null)
             gm.OnCellClicked(row, col);
     }
 
     /// <summary>
-    /// IPointerClickHandler implementation so EventSystem can detect clicks/taps.
-    /// </summary>
-    public void OnPointerClick(PointerEventData eventData)
-    {
-        OnCellTapped();
-    }
-
-    /// <summary>
-    /// Highlights or un-highlights the cell, starting or stopping the pulse effect.
+    /// Toggle pulsing highlight via DOTween loops.
     /// </summary>
     public void Highlight(bool on)
     {
-        if (pulseCoroutine != null)
-        {
-            StopCoroutine(pulseCoroutine);
-            pulseCoroutine = null;
-        }
+        // Kill any existing tweens on this GameObject
+        transform.DOKill();
+        sr.DOKill();
 
         if (on)
         {
-            // Semi-transparent yellow highlight
-            sr.color = new Color(1f, 1f, 0f, 0.5f);
-            pulseCoroutine = StartCoroutine(DoPulse());
+            // Fade in to highlightAlpha
+            sr.DOFade(highlightAlpha, highlightFadeDuration);
+
+            // Continuous pulse scale
+            transform.DOScale(baseScale * pulseScale, pulseHalfDuration)
+                .SetLoops(-1, LoopType.Yoyo)
+                .SetEase(Ease.InOutSine);
         }
         else
         {
-            // Return to fully transparent and reset scale
-            var c = sr.color;
-            sr.color = new Color(c.r, c.g, c.b, 0f);
-            transform.localScale = baseScale;
+            // Fade out
+            sr.DOFade(0f, highlightFadeDuration);
+
+            // Return to base scale
+            transform.DOScale(baseScale, highlightFadeDuration)
+                .SetEase(Ease.InOutSine);
         }
     }
 
     /// <summary>
-    /// Sets a solid color on the cell (e.g., attacker/defender markers), stopping any pulse.
+    /// Set a solid color and stop any pulsing highlight.
     /// </summary>
     public void SetColor(Color c)
     {
-        if (pulseCoroutine != null)
-        {
-            StopCoroutine(pulseCoroutine);
-            pulseCoroutine = null;
-        }
+        // Kill tweens
+        transform.DOKill();
+        sr.DOKill();
+
+        // Apply color with full alpha
         sr.color = new Color(c.r, c.g, c.b, 1f);
+
+        // Reset scale
         transform.localScale = baseScale;
-    }
-
-    /// <summary>
-    /// Coroutine to pulse the cell scale up then down.
-    /// </summary>
-    private IEnumerator DoPulse()
-    {
-        Vector3 original = baseScale;
-        Vector3 target = original * 1.15f;
-        float t = 0f;
-
-        // Scale up
-        while (t < 1f)
-        {
-            t += Time.deltaTime * 6f;
-            transform.localScale = Vector3.Lerp(original, target, t);
-            yield return null;
-        }
-
-        // Scale down
-        t = 0f;
-        while (t < 1f)
-        {
-            t += Time.deltaTime * 6f;
-            transform.localScale = Vector3.Lerp(target, original, t);
-            yield return null;
-        }
-
-        // Ensure exact base scale at end
-        transform.localScale = baseScale;
-        pulseCoroutine = null;
     }
 }
