@@ -150,6 +150,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   row: 0
   col: 0
+  pulseScale: 1.05
+  pulseHalfDuration: 0.25
+  highlightAlpha: 0.5
+  highlightFadeDuration: 0.1
 --- !u!1 &5894113621198180024
 GameObject:
   m_ObjectHideFlags: 0

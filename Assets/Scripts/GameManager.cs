@@ -132,7 +132,7 @@ public class GameManager : MonoBehaviour
     public enum Actor { Player, AI }
     private Actor possession;
 
-    private enum Phase { PlayerAttack, AwaitingDefense }
+    private enum Phase { ChoosingModifiers, PlayerAttack, AwaitingDefense }
     private Phase phase;
 
     private int attackChoice, defendChoice;
@@ -150,6 +150,16 @@ public class GameManager : MonoBehaviour
     private Coroutine _clearModifierCoroutine;
     private List<int> _allowedColumns = new List<int>();
     private List<GameObject> _revealMarkers = new List<GameObject>();
+
+    // your UI panel that shows 3 modifier buttons/icons
+    [SerializeField] private ModifierDraftPanel modifierDraftPanel;
+
+    // the three-option pools and the picks
+    private List<MatchModifierDefinition> _playerDraft;
+    private List<MatchModifierDefinition> _aiDraft;
+    private MatchModifierDefinition _playerPick;
+    private MatchModifierDefinition _aiPick;
+
 
     // ——— NEW: map each grid‐column to whichever buttons you want enabled ———
     [System.Serializable]
@@ -183,33 +193,36 @@ public class GameManager : MonoBehaviour
    
    void Start()
 {
-    if (rulesButton != null && rulesPanel != null)
+    // If you still have the old rulesPanel in your scene, hide it so it never blocks clicks.
+    if (rulesPanel != null)
+        rulesPanel.SetActive(false);
+
+    // (We no longer wire up rulesButton here; that block has been removed.)
+
+    // Cache penalty visuals
+    penaltyBallStartPos   = penaltyBall.anchoredPosition;
+    goalkeeperBaseScale   = goalkeeperImage.rectTransform.localScale;
+
+    // Initialize each Cell with its row/col and a reference back to this GM
+    for (int r = 0; r < gridManager.rows; r++)
     {
-        // ensure the button itself is visible
-        rulesButton.gameObject.SetActive(true);
-
-        // hide the panel until the button is clicked
-        rulesPanel.SetActive(true);
-
-        // wire up the toggle
-        rulesButton.onClick.AddListener(() =>
-            rulesPanel.SetActive(!rulesPanel.activeSelf)
-        );
+        for (int c = 0; c < gridManager.cols; c++)
+        {
+            gridManager
+                .cells[r, c]
+                .GetComponent<Cell>()
+                .Initialize(r, c, this);
+        }
     }
 
-    penaltyBallStartPos = penaltyBall.anchoredPosition;
-    goalkeeperBaseScale = goalkeeperImage.rectTransform.localScale;
-
-    // Initialize grid cells
-    for (int r = 0; r < gridManager.rows; r++)
-        for (int c = 0; c < gridManager.cols; c++)
-            gridManager.cells[r, c].GetComponent<Cell>().Initialize(r, c, this);
-
-    messageText.text = "";
+    // Clear any on-screen text
+    messageText.text  = "";
     modifierText.text = "";
 
+    // Kick off the very first match turn
     InitializeMatch();
 }
+
 
 
     /// <summary>
@@ -262,25 +275,82 @@ private void InitializeMatch()
     }
 
 
-   void StartNewTurn()
+  void StartNewTurn()
 {
-    _inputLocked = false;
-    int targetRow = possession == Actor.Player ? ballRow + 1 : ballRow - 1;
+    _inputLocked = true;
+    phase = Phase.ChoosingModifiers;
+    BeginModifierDraft();
+}
 
-    // 1) Highlight allowed row cells and fill _allowedColumns
+// in GameManager:
+void BeginModifierDraft()
+{
+    matchModifierManager.ClearTurnModifiers();
+    _playerPick = _aiPick = null;
+
+    // clear old siblings on the draft panel
+    modifierDraftPanel.ClearChoices();
+
+    _playerDraft = matchModifierManager.DraftThree();
+    _aiDraft     = matchModifierManager.DraftThree();
+
+    modifierDraftPanel.Show(_playerDraft, OnPlayerModifierChosen);
+
+    // make sure it’s on top
+    modifierDraftPanel.transform.SetAsLastSibling();
+
+    _aiPick = _aiDraft[Random.Range(0, _aiDraft.Count)];
+}
+
+
+
+private void OnPlayerModifierChosen(MatchModifierDefinition pick)
+{
+    _playerPick = pick;
+    modifierDraftPanel.LockButtons();
+    TryResolveDraft();
+}
+
+private void TryResolveDraft()
+{
+    if (_playerPick == null || _aiPick == null) return;
+    modifierDraftPanel.Reveal(_playerPick, _aiPick);
+    matchModifierManager.ApplyTurnModifiers(_playerPick.type, _aiPick.type);
+    StartCoroutine(ContinueAfterDraft());
+}
+
+
+
+private IEnumerator ContinueAfterDraft()
+{
+    // give player a moment to see both picks
+    yield return new WaitForSeconds(0.5f);
+    modifierDraftPanel.Hide();
+    
+    // 1) Unlock input
+    _inputLocked = false;
+    
+    // 2) Recompute the row we’ll be moving into
+    int targetRow = (possession == Actor.Player)
+        ? ballRow + 1
+        : ballRow - 1;
+    
+    // 3) Restore your old turn logic:
+    //    a) Set phase &, if AI’s turn, let it pick its attack
     if (possession == Actor.Player)
     {
         phase = Phase.PlayerAttack;
-        HighlightRow(targetRow, Actor.Player);
     }
     else
     {
         phase = Phase.AwaitingDefense;
-        HighlightRow(targetRow, Actor.AI);
         attackChoice = AIAttackGuess();
     }
-
-    // 2) If Flight Path is on, pick its column from allowed
+    
+    //    b) Highlight the allowed cells
+    HighlightRow(targetRow, possession);
+    
+    //    c) Flight Path
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath)
         && _allowedColumns.Count > 0)
@@ -288,35 +358,28 @@ private void InitializeMatch()
         int fastFromAllowed = _allowedColumns[Random.Range(0, _allowedColumns.Count)];
         matchModifierManager.SetFastLaneColumn(fastFromAllowed);
     }
-
-    // 2.5) If Quit-or-Double is on, pick its column from allowed (when restricting to adjacent)
+    
+    //    d) Quit‐or‐Double
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble))
     {
-        int qodCol;
-        if (restrictToAdjacent && _allowedColumns.Count > 0)
-        {
-            // only pick from the cells you actually highlighted
-            qodCol = _allowedColumns[Random.Range(0, _allowedColumns.Count)];
-        }
-        else
-        {
-            // otherwise any column is fine
-            qodCol = Random.Range(0, gridManager.cols);
-        }
+        int qodCol = restrictToAdjacent && _allowedColumns.Count > 0
+            ? _allowedColumns[Random.Range(0, _allowedColumns.Count)]
+            : Random.Range(0, gridManager.cols);
         matchModifierManager.SetQuitOrDoubleColumn(qodCol);
     }
-
-    // 3) Highlight fast-lane cell (cyan)…
+    
+    //    e) Highlight Fast‐Lane (cyan)
     int fastCol = matchModifierManager.GetFastLaneColumn();
     if (fastCol >= 0 && targetRow >= 0 && targetRow < gridManager.rows)
     {
         var fastCell = gridManager.cells[targetRow, fastCol].GetComponent<Cell>();
         fastCell.Highlight(true);
-        fastCell.GetComponent<SpriteRenderer>().color = new Color(0f, 1f, 1f, 0.5f);
+        fastCell.GetComponent<SpriteRenderer>().color =
+            new Color(0f, 1f, 1f, 0.5f);
     }
-
-    // 4) Highlight locked-column cell (red)…
+    
+    //    f) Highlight Locked‐Column (red)
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn))
     {
@@ -325,11 +388,12 @@ private void InitializeMatch()
         {
             var lockCell = gridManager.cells[targetRow, lockedCol].GetComponent<Cell>();
             lockCell.Highlight(true);
-            lockCell.GetComponent<SpriteRenderer>().color = new Color(1f, 0f, 0f, 0.5f);
+            lockCell.GetComponent<SpriteRenderer>().color =
+                new Color(1f, 0f, 0f, 0.5f);
         }
     }
-
-    // 5) Finally, highlight your Quit-or-Double cell (magenta)…
+    
+    //    g) Highlight Quit‐or‐Double (magenta)
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble))
     {
@@ -338,12 +402,13 @@ private void InitializeMatch()
         {
             var qodCell = gridManager.cells[targetRow, qodCol].GetComponent<Cell>();
             qodCell.Highlight(true);
-            qodCell.GetComponent<SpriteRenderer>().color = new Color(1f, 0f, 1f, 0.5f);
+            qodCell.GetComponent<SpriteRenderer>().color =
+                new Color(1f, 0f, 1f, 0.5f);
         }
     }
+    
+    // and now letting OnCellClicked drive into ResolveTurn() as usual…
 }
-
-
 
    public void OnCellClicked(int r, int c)
 {

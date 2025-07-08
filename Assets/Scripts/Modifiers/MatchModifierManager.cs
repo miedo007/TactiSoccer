@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using System.Linq;
 
 public class MatchModifierManager : MonoBehaviour
 {
@@ -41,6 +42,10 @@ public class MatchModifierManager : MonoBehaviour
 
         // you can add QuitOrDouble incompatibilities here if needed
     };
+
+    // Holds only the two modifiers picked each turn
+    private List<MatchModifierDefinition.ModifierType> _turnModifiers = 
+    new List<MatchModifierDefinition.ModifierType>();
 
     // --- Momentum Limit state ---
     private int _consecutiveAdvances = 0;
@@ -141,8 +146,9 @@ public class MatchModifierManager : MonoBehaviour
         }
     }
 
-    public bool HasModifier(MatchModifierDefinition.ModifierType t)
-        => activeModifiers.Exists(m => m.type == t);
+    public bool HasModifier(MatchModifierDefinition.ModifierType t) =>
+    _turnModifiers.Contains(t)
+    || activeModifiers.Exists(m => m.type == t);
 
     // --- Momentum Limit hooks ---
     public void OnAdvance()
@@ -395,5 +401,39 @@ public void ConsumeCounterStrike(GameManager.Actor actor)
         _aiTackleCount            = 0;
     }
 }
+/// <summary>
+/// Returns three random modifier definitions for your draft UI.
+/// </summary>
+public List<MatchModifierDefinition> DraftThree()
+{
+    // copy and shuffle your full list:
+    var pool = new List<MatchModifierDefinition>(allModifiers);
+    for (int i = 0; i < pool.Count; i++) {
+        int j = Random.Range(i, pool.Count);
+        var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+    }
+    // take the first three
+    return pool.Take(3).ToList();
+}
+
+/// <summary>
+/// Apply exactly these two picks for the current turn.
+/// </summary>
+public void ApplyTurnModifiers(
+    MatchModifierDefinition.ModifierType playerPick,
+    MatchModifierDefinition.ModifierType aiPick
+) {
+    _turnModifiers.Clear();
+    _turnModifiers.Add(playerPick);
+    _turnModifiers.Add(aiPick);
+}
+
+/// <summary>
+/// Clears last turn’s picks; call at the start of each new draft.
+/// </summary>
+public void ClearTurnModifiers() {
+    _turnModifiers.Clear();
+}
+
 
 }
