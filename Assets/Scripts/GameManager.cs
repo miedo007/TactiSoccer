@@ -120,6 +120,10 @@ public class GameManager : MonoBehaviour
     private int _leaderboardScore = 0;
     public string leaderboardID = "highscore";
 
+    [Header("Draft Delay")]
+    [Tooltip("How long to wait before showing the modifier draft panel each turn")]
+    [SerializeField] private float draftDelay = 1.0f;
+
     // private state
     private int playerGold;
     private bool _playerWon;
@@ -273,59 +277,57 @@ private void InitializeMatch()
             Quaternion.identity);
         ballCtrl = ballInstance.GetComponent<BallController>();
     }
+    
+    void StartNewTurn()
+    {
+        _inputLocked = true;
+        phase = Phase.ChoosingModifiers;
+        StartCoroutine(BeginModifierDraftWithDelay());
+    }
 
+    private IEnumerator BeginModifierDraftWithDelay()
+    {
+        // 1) wait so the last move animation can finish
+        yield return new WaitForSeconds(draftDelay);
+        // 2) then open the draft
+        BeginModifierDraft();
+    }
 
-  void StartNewTurn()
-{
-    _inputLocked = true;
-    phase = Phase.ChoosingModifiers;
-    BeginModifierDraft();
-}
+    private void BeginModifierDraft()
+    {
+        matchModifierManager.ClearTurnModifiers();
+        _playerPick = _aiPick = null;
 
-// in GameManager:
-void BeginModifierDraft()
-{
-    matchModifierManager.ClearTurnModifiers();
-    _playerPick = _aiPick = null;
+        _playerDraft = matchModifierManager.DraftThree();
+        _aiDraft     = matchModifierManager.DraftThree();
 
-    // clear old siblings on the draft panel
-    modifierDraftPanel.ClearChoices();
+        modifierDraftPanel.Show(_playerDraft, OnPlayerModifierChosen);
+        modifierDraftPanel.transform.SetAsLastSibling();
 
-    _playerDraft = matchModifierManager.DraftThree();
-    _aiDraft     = matchModifierManager.DraftThree();
+        _aiPick = _aiDraft[Random.Range(0, _aiDraft.Count)];
+    }
 
-    modifierDraftPanel.Show(_playerDraft, OnPlayerModifierChosen);
+    private void OnPlayerModifierChosen(MatchModifierDefinition pick)
+    {
+        _playerPick = pick;
+        modifierDraftPanel.LockButtons();
+        TryResolveDraft();
+    }
 
-    // make sure it’s on top
-    modifierDraftPanel.transform.SetAsLastSibling();
+    private void TryResolveDraft()
+    {
+        if (_playerPick == null || _aiPick == null) return;
+        modifierDraftPanel.Reveal(_playerPick, _aiPick);
+        matchModifierManager.ApplyTurnModifiers(_playerPick.type, _aiPick.type);
+        StartCoroutine(ContinueAfterDraft());
+    }
 
-    _aiPick = _aiDraft[Random.Range(0, _aiDraft.Count)];
-}
+    private IEnumerator ContinueAfterDraft()
+    {
+        // give player a moment to see both picks
+        yield return new WaitForSeconds(0.5f);
+        modifierDraftPanel.Hide();
 
-
-
-private void OnPlayerModifierChosen(MatchModifierDefinition pick)
-{
-    _playerPick = pick;
-    modifierDraftPanel.LockButtons();
-    TryResolveDraft();
-}
-
-private void TryResolveDraft()
-{
-    if (_playerPick == null || _aiPick == null) return;
-    modifierDraftPanel.Reveal(_playerPick, _aiPick);
-    matchModifierManager.ApplyTurnModifiers(_playerPick.type, _aiPick.type);
-    StartCoroutine(ContinueAfterDraft());
-}
-
-
-
-private IEnumerator ContinueAfterDraft()
-{
-    // give player a moment to see both picks
-    yield return new WaitForSeconds(0.5f);
-    modifierDraftPanel.Hide();
     
     // 1) Unlock input
     _inputLocked = false;
