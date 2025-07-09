@@ -1008,6 +1008,7 @@ private IEnumerator PenaltySequence(Actor attacker)
     _allowedColumns.Clear();
     if (tr < 0 || tr >= gridManager.rows) return;
 
+    // 1) Build initial baseCols (GridMastery, adjacency, or full row)
     bool gm = enableModifiers && matchModifierManager.IsGridMasteryReady();
     List<int> baseCols;
 
@@ -1026,7 +1027,7 @@ private IEnumerator PenaltySequence(Actor attacker)
         baseCols = Enumerable.Range(0, gridManager.cols).ToList();
     }
 
-    // …the rest of your filters stay the same…
+    // 2) Power-up / BurnedColumn / LockedColumn filters
     if (enablePowerUps)
         baseCols = baseCols
             .Where(c => powerUpManager.GetAllowedColumns(attacker.ToString()).Contains(c))
@@ -1040,14 +1041,31 @@ private IEnumerator PenaltySequence(Actor attacker)
             MatchModifierDefinition.ModifierType.LockedColumn))
         baseCols.Remove(matchModifierManager.GetLockedColumn());
 
-    // highlight & cache
+    // ── NEW: Blockade ──
+    // if we're in defense phase and the defender is blocked, limit to two columns
+    if (phase == Phase.AwaitingDefense && enableModifiers)
+    {
+        var defender = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
+        if (matchModifierManager.IsBlockadeReady(defender))
+        {
+            baseCols = baseCols
+                .OrderBy(_ => Random.value)
+                .Take(Mathf.Min(2, baseCols.Count))
+                .ToList();
+
+            matchModifierManager.ConsumeBlockade(defender);
+            ShowModifier("Blockade!\nDefender limited to 2 columns", 3f);
+        }
+    }
+
+    // 3) Highlight & cache
     foreach (int c in baseCols)
     {
         _allowedColumns.Add(c);
         gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
     }
 
-    // now your existing warning‐colors (momentum, corridor, etc.)…
+    // 4) Your existing warning-colors (MomentumLimit, DynamicCorridor, CounterStrike…)
     if (enableModifiers
         && matchModifierManager.HasModifier(
                MatchModifierDefinition.ModifierType.MomentumLimit)
@@ -1060,8 +1078,6 @@ private IEnumerator PenaltySequence(Actor attacker)
         }
     }
 
-
- // Dynamic Corridor warning (blue)
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.DynamicCorridor)
         && matchModifierManager.IsDynamicCorridorReady(attacker))
@@ -1072,19 +1088,19 @@ private IEnumerator PenaltySequence(Actor attacker)
             sr.color = new Color(0f, 0f, 1f, 0.5f);
         }
     }
-    
-    // Counter Strike warning (purple)
-if (enableModifiers
-    && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.CounterStrike)
-    && matchModifierManager.IsCounterStrikeReady(attacker))
-{
-    foreach (int c in _allowedColumns)
+
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.CounterStrike)
+        && matchModifierManager.IsCounterStrikeReady(attacker))
     {
-        var sr = gridManager.cells[tr, c].GetComponent<SpriteRenderer>();
-        sr.color = new Color(0.5f, 0f, 0.5f, 0.5f);
+        foreach (int c in _allowedColumns)
+        {
+            var sr = gridManager.cells[tr, c].GetComponent<SpriteRenderer>();
+            sr.color = new Color(0.5f, 0f, 0.5f, 0.5f);
+        }
     }
 }
-}
+
 
 
 

@@ -79,8 +79,12 @@ public class MatchModifierManager : MonoBehaviour
     private bool _dynamicCorridorReadyPlayer = false;
     private bool _dynamicCorridorReadyAI     = false;
 
-     // ── New: track whether DoubleAdvance is armed ──
+    // ── New: track whether DoubleAdvance is armed ──
     private bool _doubleAdvanceReady = false;
+
+      // ── Blockade state ──
+    private bool _blockadeReadyPlayer = false;
+    private bool _blockadeReadyAI     = false;
    
 // — Counter Strike state —
     private int  _playerTackleCount           = 0;
@@ -445,6 +449,12 @@ public void ApplyTurnModifiers(
         _gridMasteryReady = true;
         Debug.Log("[ApplyTurnModifiers] GridMastery armed!");
     }
+
+    // ── NEW: blockade → next defense only 2 columns ──
+    if (playerPick == MatchModifierDefinition.ModifierType.Blockade)
+        _blockadeReadyAI = true;    // player blocked AI’s defense
+    if (aiPick == MatchModifierDefinition.ModifierType.Blockade)
+        _blockadeReadyPlayer = true; // AI blocked player’s defense
 }
 
 
@@ -482,6 +492,19 @@ public void ClearTurnModifiers() {
     /// Call this after consuming the bonus so it only fires once.
     /// </summary>
     public void ConsumeDoubleAdvance() => _doubleAdvanceReady = false;
+    /// <summary> Returns true if that defender is under blockade. </summary>
+    public bool IsBlockadeReady(GameManager.Actor defender) =>
+        defender == GameManager.Actor.Player
+            ? _blockadeReadyPlayer
+            : _blockadeReadyAI;
 
+    /// <summary> Consume the blockade so it only applies once. </summary>
+    public void ConsumeBlockade(GameManager.Actor defender)
+    {
+        if (defender == GameManager.Actor.Player)
+            _blockadeReadyPlayer = false;
+        else
+            _blockadeReadyAI = false;
+    }
 
 }
