@@ -435,5 +435,23 @@ public void ClearTurnModifiers() {
     _turnModifiers.Clear();
 }
 
+/// <summary>
+    /// Pick three random modifiers whose category is in allowedCategories.
+    /// </summary>
+    public List<MatchModifierDefinition> DraftThree(params 
+        MatchModifierDefinition.ModifierCategory[] allowedCategories)
+    {
+        var pool = allModifiers
+            .Where(m => allowedCategories.Contains(m.category))
+            .ToList();
+        // shuffle & take 3
+        for (int i = 0; i < pool.Count; i++)
+        {
+            var j = Random.Range(i, pool.Count);
+            var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+        }
+        return pool.Take(Mathf.Min(3, pool.Count)).ToList();
+    }
+
 
 }

@@ -277,7 +277,7 @@ private void InitializeMatch()
             Quaternion.identity);
         ballCtrl = ballInstance.GetComponent<BallController>();
     }
-    
+
     void StartNewTurn()
     {
         _inputLocked = true;
@@ -293,19 +293,38 @@ private void InitializeMatch()
         BeginModifierDraft();
     }
 
-    private void BeginModifierDraft()
+    void BeginModifierDraft()
+{
+    matchModifierManager.ClearTurnModifiers();
+    _playerPick = _aiPick = null;
+
+    // attacker always gets Offensive+Tactical, defender Defensive+Tactical
+    var offenseCats = new[] {
+        MatchModifierDefinition.ModifierCategory.Offensive,
+        MatchModifierDefinition.ModifierCategory.Tactical
+    };
+    var defenseCats = new[] {
+        MatchModifierDefinition.ModifierCategory.Defensive,
+        MatchModifierDefinition.ModifierCategory.Tactical
+    };
+
+    if (possession == Actor.Player)
     {
-        matchModifierManager.ClearTurnModifiers();
-        _playerPick = _aiPick = null;
-
-        _playerDraft = matchModifierManager.DraftThree();
-        _aiDraft     = matchModifierManager.DraftThree();
-
-        modifierDraftPanel.Show(_playerDraft, OnPlayerModifierChosen);
-        modifierDraftPanel.transform.SetAsLastSibling();
-
-        _aiPick = _aiDraft[Random.Range(0, _aiDraft.Count)];
+        _playerDraft = matchModifierManager.DraftThree(offenseCats);
+        _aiDraft     = matchModifierManager.DraftThree(defenseCats);
     }
+    else
+    {
+        _playerDraft = matchModifierManager.DraftThree(defenseCats);
+        _aiDraft     = matchModifierManager.DraftThree(offenseCats);
+    }
+
+    modifierDraftPanel.Show(_playerDraft, OnPlayerModifierChosen);
+    modifierDraftPanel.transform.SetAsLastSibling();
+
+    _aiPick = _aiDraft[Random.Range(0, _aiDraft.Count)];
+}
+
 
     private void OnPlayerModifierChosen(MatchModifierDefinition pick)
     {
