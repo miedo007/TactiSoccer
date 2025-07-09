@@ -78,6 +78,9 @@ public class MatchModifierManager : MonoBehaviour
     private int _aiDiagonalCount     = 0;
     private bool _dynamicCorridorReadyPlayer = false;
     private bool _dynamicCorridorReadyAI     = false;
+
+     // ── New: track whether DoubleAdvance is armed ──
+    private bool _doubleAdvanceReady = false;
    
 // — Counter Strike state —
     private int  _playerTackleCount           = 0;
@@ -420,13 +423,20 @@ public List<MatchModifierDefinition> DraftThree()
 /// Apply exactly these two picks for the current turn.
 /// </summary>
 public void ApplyTurnModifiers(
-    MatchModifierDefinition.ModifierType playerPick,
-    MatchModifierDefinition.ModifierType aiPick
-) {
-    _turnModifiers.Clear();
-    _turnModifiers.Add(playerPick);
-    _turnModifiers.Add(aiPick);
-}
+        MatchModifierDefinition.ModifierType playerPick,
+        MatchModifierDefinition.ModifierType aiPick
+    ) {
+        _turnModifiers.Clear();
+        _turnModifiers.Add(playerPick);
+        _turnModifiers.Add(aiPick);
+
+        // Arm DoubleAdvance if either pick is it
+        if (playerPick == MatchModifierDefinition.ModifierType.DoubleAdvance
+         || aiPick     == MatchModifierDefinition.ModifierType.DoubleAdvance)
+        {
+            _doubleAdvanceReady = true;
+        }
+      }  
 
 /// <summary>
 /// Clears last turn’s picks; call at the start of each new draft.
@@ -452,6 +462,16 @@ public void ClearTurnModifiers() {
         }
         return pool.Take(Mathf.Min(3, pool.Count)).ToList();
     }
+
+    /// <summary>
+    /// Returns true if the next dribble should advance +2 rows.
+    /// </summary>
+    public bool IsDoubleAdvanceReady() => _doubleAdvanceReady;
+
+    /// <summary>
+    /// Call this after consuming the bonus so it only fires once.
+    /// </summary>
+    public void ConsumeDoubleAdvance() => _doubleAdvanceReady = false;
 
 
 }

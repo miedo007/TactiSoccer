@@ -359,17 +359,22 @@ private void InitializeMatch()
     // 3) Restore your old turn logic:
     //    a) Set phase &, if AI’s turn, let it pick its attack
     if (possession == Actor.Player)
-    {
-        phase = Phase.PlayerAttack;
-    }
-    else
-    {
-        phase = Phase.AwaitingDefense;
-        attackChoice = AIAttackGuess();
-    }
+{
+    phase = Phase.PlayerAttack;
+}
+else
+{
+    phase = Phase.AwaitingDefense;
+}
     
     //    b) Highlight the allowed cells
     HighlightRow(targetRow, possession);
+
+//    c) Now let the AI pick from those highlighted columns
+if (possession != Actor.Player)
+{
+    attackChoice = AIAttackGuess();
+}
     
     //    c) Flight Path
     if (enableModifiers
@@ -661,6 +666,15 @@ else
             matchModifierManager.OnDiagonalDribble(attacker);
     }
 
+    // — NEW: Double Advance —
+    int doubleBoost = 0;
+    if (matchModifierManager.IsDoubleAdvanceReady())
+    {
+        doubleBoost = 1;
+        matchModifierManager.ConsumeDoubleAdvance();
+        ShowModifier("Double Advance!\nExtra row!", 3f);
+    }
+
     if (gridMasteryActive)
     {
         matchModifierManager.ConsumeGridMastery();
@@ -678,12 +692,10 @@ else
         ? feedbackPlayerAdvance
         : feedbackOpponentAdvance
     )?.PlayFeedbacks();
-}
 
     // 5) Column Loyalty
     int loyaltyBoost = 0;
-    if (!tackle
-        && enableModifiers
+    if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.ColumnLoyalty))
     {
         loyaltyBoost = matchModifierManager.GetLoyaltyBoost(attacker, attackChoice);
@@ -693,8 +705,7 @@ else
 
     // 6) Flight Path
     int flightBoost = 0;
-    if (!tackle
-        && enableModifiers
+    if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath)
         && attackChoice == matchModifierManager.GetFastLaneColumn())
     {
@@ -702,10 +713,9 @@ else
         ShowModifier("Flight Path! \nDouble Advance", 3f);
     }
 
-    // 7) Quit-or-Double boost
+    // 7) Quit-or-Double
     int quitBoost = 0;
-    if (!tackle
-        && enableModifiers
+    if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble)
         && attackChoice == matchModifierManager.GetQuitOrDoubleColumn())
     {
@@ -714,25 +724,22 @@ else
     }
 
     // 8) Burned Column update
-if (enableModifiers)
-    matchModifierManager.SetLastUsedColumn(attacker, attackChoice);
+    if (enableModifiers)
+        matchModifierManager.SetLastUsedColumn(attacker, attackChoice);
 
-yield return new WaitForSeconds(tackleAnimDuration);
-ClearHighlights();
+    // Wait & clear highlights
+    yield return new WaitForSeconds(tackleAnimDuration);
+    ClearHighlights();
 
-// 9) Advance with all boosts (including Dynamic Corridor)
-{
-    // compute the extra row if Dynamic Corridor is armed
+    // 9) Advance with all boosts (including doubleBoost)
     int dynamicBoost = dynamicCorridorActive ? 1 : 0;
-
-    int totalBoost = loyaltyBoost + flightBoost + quitBoost + dynamicBoost;
+    int totalBoost = loyaltyBoost + flightBoost + quitBoost + dynamicBoost + doubleBoost;
     int newRow = ballRow + dir + (totalBoost * dir);
     ballRow = Mathf.Clamp(newRow, 0, gridManager.rows - 1);
     ballCol = attackChoice;
-}
 
     yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
-
+}
     if (enablePowerUps)
         CheckForPickups();
 

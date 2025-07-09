@@ -37,7 +37,8 @@ public class MatchModifierDefinition : ScriptableObject
         GridMastery,
         DynamicCorridor,
         CounterStrike, 
-        QuitOrDouble 
+        QuitOrDouble, 
+        DoubleAdvance 
         // (you can add more here later)
     }
 }
