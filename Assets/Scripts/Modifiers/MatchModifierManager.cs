@@ -86,6 +86,9 @@ public class MatchModifierManager : MonoBehaviour
     private bool _blockadeReadyPlayer = false;
     private bool _blockadeReadyAI     = false;
 
+    private bool _sabotageReadyPlayer = false;
+    private bool _sabotageReadyAI     = false;
+
     // ── Add a field at the top:
     private bool _slipstreamReady = false;
 
@@ -463,6 +466,11 @@ public void ApplyTurnModifiers(
     if (aiPick == MatchModifierDefinition.ModifierType.Blockade)
         _blockadeReadyPlayer = true; // AI blocked Player’s defense
 
+    if (playerPick == MatchModifierDefinition.ModifierType.Sabotage)
+        _sabotageReadyAI = true;
+    if (aiPick == MatchModifierDefinition.ModifierType.Sabotage)
+        _sabotageReadyPlayer = true;
+
     // ── Slipstream: next diagonal dribble → +1 extra row ──
     if (playerPick == MatchModifierDefinition.ModifierType.Slipstream
      || aiPick     == MatchModifierDefinition.ModifierType.Slipstream)
@@ -544,12 +552,29 @@ public void ConsumeSlipstream() => _slipstreamReady = false;
             ? _counterSurgeReadyPlayer
             : _counterSurgeReadyAI;
 
-    /// <summary>Consume so it only fires once.</summary>
-    public void ConsumeCounterSurge(GameManager.Actor defender) {
+    /// <summary>Consume so CounterSurge only fires once.</summary>
+    public void ConsumeCounterSurge(GameManager.Actor defender)
+    {
         if (defender == GameManager.Actor.Player)
             _counterSurgeReadyPlayer = false;
         else
             _counterSurgeReadyAI = false;
+    }  // ← make sure this closing brace is here
+
+    /// <summary>True if that attacker’s next move is sabotaged (only 2 cols).</summary>
+    public bool IsSabotageReady(GameManager.Actor actor)
+    {
+        return actor == GameManager.Actor.Player
+            ? _sabotageReadyPlayer
+            : _sabotageReadyAI;
     }
 
-}
+    /// <summary>Consume so Sabotage only fires once.</summary>
+    public void ConsumeSabotage(GameManager.Actor actor)
+    {
+        if (actor == GameManager.Actor.Player)
+            _sabotageReadyPlayer = false;
+        else
+            _sabotageReadyAI = false;
+    }
+} 

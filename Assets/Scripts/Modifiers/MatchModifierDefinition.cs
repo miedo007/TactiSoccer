@@ -40,7 +40,8 @@ public class MatchModifierDefinition : ScriptableObject
         QuitOrDouble,
         Blockade,
         Slipstream,
-        CounterSurge,              
+        CounterSurge,   
+        Sabotage,           
         DoubleAdvance 
         // (you can add more here later)
     }

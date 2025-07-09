@@ -1080,6 +1080,20 @@ private IEnumerator PenaltySequence(Actor attacker)
         }
     }
 
+    // ——— Sabotage override ———
+    // attacker next turn may only choose two columns
+    if (enableModifiers
+        && matchModifierManager.IsSabotageReady(attacker))
+    {
+        Debug.Log("[HighlightRow] Sabotage! attacker limited to 2 columns.");
+        // randomly pick two from whatever is left
+        baseCols = baseCols
+            .OrderBy(_ => UnityEngine.Random.value)
+            .Take(2)
+            .ToList();
+        matchModifierManager.ConsumeSabotage(attacker);
+    }
+
     // 3) Highlight & cache
     foreach (int c in baseCols)
     {
