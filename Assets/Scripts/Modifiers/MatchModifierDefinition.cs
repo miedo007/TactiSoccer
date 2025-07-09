@@ -38,7 +38,8 @@ public class MatchModifierDefinition : ScriptableObject
         DynamicCorridor,
         CounterStrike, 
         QuitOrDouble,
-        Blockade,        
+        Blockade,
+        Slipstream,              
         DoubleAdvance 
         // (you can add more here later)
     }

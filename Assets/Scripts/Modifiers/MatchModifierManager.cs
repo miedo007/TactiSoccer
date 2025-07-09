@@ -85,6 +85,9 @@ public class MatchModifierManager : MonoBehaviour
       // ── Blockade state ──
     private bool _blockadeReadyPlayer = false;
     private bool _blockadeReadyAI     = false;
+
+    // ── Add a field at the top:
+    private bool _slipstreamReady = false;
    
 // — Counter Strike state —
     private int  _playerTackleCount           = 0;
@@ -455,6 +458,13 @@ public void ApplyTurnModifiers(
         _blockadeReadyAI = true;    // player blocked AI’s defense
     if (aiPick == MatchModifierDefinition.ModifierType.Blockade)
         _blockadeReadyPlayer = true; // AI blocked player’s defense
+
+        // Arm Slipstream?
+    if (playerPick == MatchModifierDefinition.ModifierType.Slipstream
+     || aiPick     == MatchModifierDefinition.ModifierType.Slipstream)
+    {
+        _slipstreamReady = true;
+    }
 }
 
 
@@ -506,5 +516,8 @@ public void ClearTurnModifiers() {
         else
             _blockadeReadyAI = false;
     }
+
+    public bool IsSlipstreamReady() => _slipstreamReady;
+public void ConsumeSlipstream() => _slipstreamReady = false;
 
 }

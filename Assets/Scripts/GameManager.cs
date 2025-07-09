@@ -675,6 +675,15 @@ else
         ShowModifier("Double Advance!\nExtra row!", 3f);
     }
 
+    // ── Slipstream: +1 on the very next diagonal dribble
+    int slipBoost = 0;
+    if (matchModifierManager.IsSlipstreamReady() && attackChoice != originalCol)
+    {
+    slipBoost = 1;
+    matchModifierManager.ConsumeSlipstream();
+    ShowModifier("Slipstream!\nDiagonal jump +1 row", 3f);
+    }
+
     if (gridMasteryActive)
     {
         matchModifierManager.ConsumeGridMastery();
@@ -733,7 +742,7 @@ else
 
     // 9) Advance with all boosts (including doubleBoost)
     int dynamicBoost = dynamicCorridorActive ? 1 : 0;
-    int totalBoost = loyaltyBoost + flightBoost + quitBoost + dynamicBoost + doubleBoost;
+    int totalBoost = loyaltyBoost + flightBoost + quitBoost + dynamicBoost + doubleBoost + slipBoost;
     int newRow = ballRow + dir + (totalBoost * dir);
     ballRow = Mathf.Clamp(newRow, 0, gridManager.rows - 1);
     ballCol = attackChoice;
