@@ -15,4 +15,5 @@ MonoBehaviour:
   modifierName: Quit Or Double
   description: Advance 2 on Dribble, go back 2 on Tackle
   icon: {fileID: 0}
+  category: 1
   type: 9

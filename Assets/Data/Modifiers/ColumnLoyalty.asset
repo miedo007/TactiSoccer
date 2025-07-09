@@ -15,4 +15,5 @@ MonoBehaviour:
   modifierName: Column Loyalty
   description: Advance twice in the same column to leap two rows on your second advance.
   icon: {fileID: 7706766155818749191, guid: 1d0d7909dfd2be549be1ab82cb66ff32, type: 3}
+  category: 0
   type: 4

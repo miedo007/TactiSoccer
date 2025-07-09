@@ -292,20 +292,20 @@ public class MatchModifierManager : MonoBehaviour
     /// Call this whenever the player completes a dribble (not a tackle).
     /// </summary>
     public void OnDribble(int column)
+{
+    if (!HasModifier(MatchModifierDefinition.ModifierType.GridMastery))
+        return;
+
+    _dribbleCounts.TryGetValue(column, out var cnt);
+    cnt++;
+    _dribbleCounts[column] = cnt;
+    Debug.Log($"[OnDribble] column={column} count={cnt}");
+    if (cnt >= 3)
     {
-        if (!HasModifier(MatchModifierDefinition.ModifierType.GridMastery))
-            return;
-
-        // increment the counter for that column
-        if (_dribbleCounts.ContainsKey(column))
-            _dribbleCounts[column]++;
-        else
-            _dribbleCounts[column] = 1;
-
-        // once any column reaches 3 dribbles, flag the next move
-        if (_dribbleCounts[column] >= 3)
-            _gridMasteryReady = true;
+        _gridMasteryReady = true;
+        Debug.Log("[OnDribble] GridMastery is now ready!");
     }
+}
 
     /// <summary>
     /// Returns true if the next dribble should ignore adjacency.
@@ -423,20 +423,30 @@ public List<MatchModifierDefinition> DraftThree()
 /// Apply exactly these two picks for the current turn.
 /// </summary>
 public void ApplyTurnModifiers(
-        MatchModifierDefinition.ModifierType playerPick,
-        MatchModifierDefinition.ModifierType aiPick
-    ) {
-        _turnModifiers.Clear();
-        _turnModifiers.Add(playerPick);
-        _turnModifiers.Add(aiPick);
+    MatchModifierDefinition.ModifierType playerPick,
+    MatchModifierDefinition.ModifierType aiPick
+) {
+    _turnModifiers.Clear();
+    _turnModifiers.Add(playerPick);
+    _turnModifiers.Add(aiPick);
 
-        // Arm DoubleAdvance if either pick is it
-        if (playerPick == MatchModifierDefinition.ModifierType.DoubleAdvance
-         || aiPick     == MatchModifierDefinition.ModifierType.DoubleAdvance)
-        {
-            _doubleAdvanceReady = true;
-        }
-      }  
+    // Arm DoubleAdvance if either pick is it
+    if (playerPick == MatchModifierDefinition.ModifierType.DoubleAdvance
+     || aiPick     == MatchModifierDefinition.ModifierType.DoubleAdvance)
+    {
+        _doubleAdvanceReady = true;
+        Debug.Log("[ApplyTurnModifiers] DoubleAdvance armed!");
+    }
+
+    // Arm GridMastery if either pick is it
+    if (playerPick == MatchModifierDefinition.ModifierType.GridMastery
+     || aiPick     == MatchModifierDefinition.ModifierType.GridMastery)
+    {
+        _gridMasteryReady = true;
+        Debug.Log("[ApplyTurnModifiers] GridMastery armed!");
+    }
+}
+
 
 /// <summary>
 /// Clears last turn’s picks; call at the start of each new draft.

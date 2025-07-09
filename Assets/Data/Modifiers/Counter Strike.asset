@@ -16,4 +16,5 @@ MonoBehaviour:
   description: After two successful tackles, the next tackle by that side pushes
     the ball two rows instead of one.
   icon: {fileID: 0}
+  category: 2
   type: 8

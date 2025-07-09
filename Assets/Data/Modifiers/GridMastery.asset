@@ -12,8 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a51caa599e9a02042870821e2c921f57, type: 3}
   m_Name: GridMastery
   m_EditorClassIdentifier: 
-  modifierName: Grid Mastery
-  description: After dribbling three times from the same column, your next dribble
-    ignores adjacency and can target any cell in the row.
+  modifierName: Glide
+  description: Your next dribble ignores adjacency and can target any cell in the
+    row.
   icon: {fileID: 0}
+  category: 0
   type: 6

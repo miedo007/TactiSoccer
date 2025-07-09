@@ -678,7 +678,7 @@ else
     if (gridMasteryActive)
     {
         matchModifierManager.ConsumeGridMastery();
-        ShowModifier("Grid Mastery! \nFull-row dribble", 3f);
+        ShowModifier("Glide!\nIgnore adjacency", 3f);
     }
 
     if (dynamicCorridorActive)
@@ -1002,44 +1002,55 @@ private IEnumerator PenaltySequence(Actor attacker)
         else                                  penaltyDefendChoice = idx;
     }
 
-    private void HighlightRow(int tr, Actor attacker)
+   private void HighlightRow(int tr, Actor attacker)
 {
     ClearHighlights();
     _allowedColumns.Clear();
     if (tr < 0 || tr >= gridManager.rows) return;
 
-    // Grid Mastery check (allows full-row if ready)
-    bool gridMasteryActive = enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.GridMastery)
-        && matchModifierManager.IsGridMasteryReady();
+    bool gm = enableModifiers && matchModifierManager.IsGridMasteryReady();
+    List<int> baseCols;
 
-    // Build allowed columns
-    var baseCols = gridMasteryActive
-        ? Enumerable.Range(0, gridManager.cols).ToList()
-        : (restrictToAdjacent
-            ? GetAdjacentColumns()
-            : Enumerable.Range(0, gridManager.cols).ToList()
-          );
+    if (gm)
+    {
+        Debug.Log("[HighlightRow] GridMastery override! allowing all columns.");
+        baseCols = Enumerable.Range(0, gridManager.cols).ToList();
+        matchModifierManager.ConsumeGridMastery();
+    }
+    else if (restrictToAdjacent)
+    {
+        baseCols = GetAdjacentColumns();
+    }
+    else
+    {
+        baseCols = Enumerable.Range(0, gridManager.cols).ToList();
+    }
 
+    // …the rest of your filters stay the same…
     if (enablePowerUps)
-        baseCols = baseCols.FindAll(c => powerUpManager.GetAllowedColumns(attacker.ToString()).Contains(c));
+        baseCols = baseCols
+            .Where(c => powerUpManager.GetAllowedColumns(attacker.ToString()).Contains(c))
+            .ToList();
 
-    if (enableModifiers && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
+    if (enableModifiers && matchModifierManager.HasModifier(
+            MatchModifierDefinition.ModifierType.BurnedColumn))
         baseCols.Remove(matchModifierManager.GetLastUsedColumn(attacker));
 
-    if (enableModifiers && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn))
+    if (enableModifiers && matchModifierManager.HasModifier(
+            MatchModifierDefinition.ModifierType.LockedColumn))
         baseCols.Remove(matchModifierManager.GetLockedColumn());
 
-    // 2) Pulse-highlight all those columns in yellow
+    // highlight & cache
     foreach (int c in baseCols)
     {
         _allowedColumns.Add(c);
         gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
     }
 
-    // Momentum Limit warning (red)
+    // now your existing warning‐colors (momentum, corridor, etc.)…
     if (enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
+        && matchModifierManager.HasModifier(
+               MatchModifierDefinition.ModifierType.MomentumLimit)
         && !matchModifierManager.CanAdvance())
     {
         foreach (int c in _allowedColumns)
@@ -1048,6 +1059,8 @@ private IEnumerator PenaltySequence(Actor attacker)
             sr.color = new Color(1f, 0f, 0f, 0.5f);
         }
     }
+
+
  // Dynamic Corridor warning (blue)
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.DynamicCorridor)

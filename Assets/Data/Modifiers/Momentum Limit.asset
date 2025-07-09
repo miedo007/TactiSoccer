@@ -16,4 +16,5 @@ MonoBehaviour:
   description: On 4th dribble in a row, success triggers a shootout sequence, a tackle
     knocks you back 2 rows.
   icon: {fileID: 2061219240541987770, guid: 541e2938808cbb741883815b77ab97bd, type: 3}
+  category: 1
   type: 0
