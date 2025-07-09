@@ -88,6 +88,10 @@ public class MatchModifierManager : MonoBehaviour
 
     // ── Add a field at the top:
     private bool _slipstreamReady = false;
+
+    // CounterSurge state
+     private bool _counterSurgeReadyPlayer = false;
+    private bool _counterSurgeReadyAI     = false;
    
 // — Counter Strike state —
     private int  _playerTackleCount           = 0;
@@ -453,18 +457,32 @@ public void ApplyTurnModifiers(
         Debug.Log("[ApplyTurnModifiers] GridMastery armed!");
     }
 
-    // ── NEW: blockade → next defense only 2 columns ──
+    // ── Blockade: defender next turn only 2 columns ──
     if (playerPick == MatchModifierDefinition.ModifierType.Blockade)
-        _blockadeReadyAI = true;    // player blocked AI’s defense
+        _blockadeReadyAI = true;    // Player blocked AI’s defense
     if (aiPick == MatchModifierDefinition.ModifierType.Blockade)
-        _blockadeReadyPlayer = true; // AI blocked player’s defense
+        _blockadeReadyPlayer = true; // AI blocked Player’s defense
 
-        // Arm Slipstream?
+    // ── Slipstream: next diagonal dribble → +1 extra row ──
     if (playerPick == MatchModifierDefinition.ModifierType.Slipstream
      || aiPick     == MatchModifierDefinition.ModifierType.Slipstream)
     {
         _slipstreamReady = true;
+        Debug.Log("[ApplyTurnModifiers] Slipstream armed!");
     }
+
+    /// ── Arm CounterSurge only for the defender ──
+        if (playerPick == MatchModifierDefinition.ModifierType.CounterSurge)
+{
+    _counterSurgeReadyPlayer = true;
+    Debug.Log("[ApplyTurnModifiers] CounterSurge armed for Player!");
+}
+
+if (aiPick == MatchModifierDefinition.ModifierType.CounterSurge)
+{
+    _counterSurgeReadyAI = true;
+    Debug.Log("[ApplyTurnModifiers] CounterSurge armed for AI!");
+}
 }
 
 
@@ -519,5 +537,19 @@ public void ClearTurnModifiers() {
 
     public bool IsSlipstreamReady() => _slipstreamReady;
 public void ConsumeSlipstream() => _slipstreamReady = false;
+
+/// <summary>True if that defender’s next tackle surges.</summary>
+    public bool IsCounterSurgeReady(GameManager.Actor defender) =>
+        defender == GameManager.Actor.Player
+            ? _counterSurgeReadyPlayer
+            : _counterSurgeReadyAI;
+
+    /// <summary>Consume so it only fires once.</summary>
+    public void ConsumeCounterSurge(GameManager.Actor defender) {
+        if (defender == GameManager.Actor.Player)
+            _counterSurgeReadyPlayer = false;
+        else
+            _counterSurgeReadyAI = false;
+    }
 
 }

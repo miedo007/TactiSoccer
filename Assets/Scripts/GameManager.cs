@@ -592,7 +592,7 @@ if (tackle)
         ballRow = Mathf.Clamp(originalRow - 3 * dir, 0, gridManager.rows - 1);
     else if (momentumLimitViolated)
         ballRow = Mathf.Clamp(originalRow - 2 * dir, 0, gridManager.rows - 1);
-    else if (enableModifiers 
+    else if (enableModifiers
          && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble)
          && attackChoice == matchModifierManager.GetQuitOrDoubleColumn())
         ballRow = Mathf.Clamp(originalRow - 2 * dir, 0, gridManager.rows - 1);
@@ -622,7 +622,6 @@ if (tackle)
     yield return tacklerCtrl.MoveToCell(cellPos).WaitForCompletion();
 
     // 6) Push the original attacker *farther* and *keep* it there
-    //    using the Inspector-tweakable fields:
     Vector3 pushPos = cellPos + Vector3.down * dir * tacklePushDistance;
     Tween pushTween = ballCtrl.transform
         .DOMove(pushPos, tacklePushDuration)
@@ -632,7 +631,7 @@ if (tackle)
     // 7) Clean up the tackler pawn
     Destroy(tacklerGO);
 
-    // 8) Modifier bookkeeping (unchanged)…
+    // 8) Modifier bookkeeping
     if (counterStrikeActive)
         matchModifierManager.ConsumeCounterStrike(attacker);
     else if (enableModifiers)
@@ -640,8 +639,19 @@ if (tackle)
     if (enableModifiers)
         matchModifierManager.OnTackle(attacker);
 
-    // 9) Swap possession, goal/penalty check, next turn (unchanged)…
+    // 9) Swap possession
     possession = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
+
+    // —— Counter Surge: if the defender had CounterSurge, they now advance +1 row —— 
+    if (enableModifiers && matchModifierManager.IsCounterSurgeReady(possession))
+    {
+        int surgeDir = (possession == Actor.Player) ? +1 : -1;
+        ballRow = Mathf.Clamp(ballRow + surgeDir, 0, gridManager.rows - 1);
+        matchModifierManager.ConsumeCounterSurge(possession);
+        ShowModifier("Counter Surge!\nAdvance an extra row!", 2f);
+    }
+
+    // 10) Goal check
     bool atGoalRow = (possession == Actor.Player && ballRow == gridManager.rows - 1)
                   || (possession == Actor.AI     && ballRow == 0);
     if (atGoalRow)
@@ -650,6 +660,7 @@ if (tackle)
         yield break;
     }
 
+    // 11) Spawn and continue
     SpawnCharacter();
     StartNewTurn();
     yield break;
@@ -735,6 +746,8 @@ else
     // 8) Burned Column update
     if (enableModifiers)
         matchModifierManager.SetLastUsedColumn(attacker, attackChoice);
+
+       
 
     // Wait & clear highlights
     yield return new WaitForSeconds(tackleAnimDuration);
