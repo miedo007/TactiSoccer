@@ -16,4 +16,4 @@ MonoBehaviour:
   description: Defender next turn may only choose three columns.
   icon: {fileID: 0}
   category: 0
-  type: 0
+  type: 10

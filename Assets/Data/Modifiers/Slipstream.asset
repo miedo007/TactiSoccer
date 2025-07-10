@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a51caa599e9a02042870821e2c921f57, type: 3}
   m_Name: Slipstream
   m_EditorClassIdentifier: 
-  modifierName: 
-  description: 
+  modifierName: Slipstream
+  description: Diagonal advance next turn leaps an extra row.
   icon: {fileID: 0}
   category: 0
   type: 0
