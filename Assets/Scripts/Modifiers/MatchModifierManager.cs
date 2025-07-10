@@ -7,8 +7,7 @@ public class MatchModifierManager : MonoBehaviour
     [Tooltip("All possible Modifiers")]
     public List<MatchModifierDefinition> allModifiers;
 
-    [HideInInspector]
-    public List<MatchModifierDefinition> activeModifiers = new List<MatchModifierDefinition>();
+   
 
     // --- Define incompatible pairs here ---
     private static readonly Dictionary<
@@ -114,7 +113,7 @@ public class MatchModifierManager : MonoBehaviour
     /// </summary>
     public void PickRandomModifiers()
     {
-        activeModifiers.Clear();
+
         var pool = new List<MatchModifierDefinition>(allModifiers);
 
         // reset all modifier state
@@ -143,7 +142,7 @@ public class MatchModifierManager : MonoBehaviour
         {
             int idx = Random.Range(0, pool.Count);
             var mod = pool[idx];
-            activeModifiers.Add(mod);
+    
             Debug.Log($"[Modifiers] Added {mod.modifierName} ({mod.type})");
 
             // remove that modifier from pool
@@ -164,8 +163,8 @@ public class MatchModifierManager : MonoBehaviour
     }
 
     public bool HasModifier(MatchModifierDefinition.ModifierType t) =>
-    _turnModifiers.Contains(t)
-    || activeModifiers.Exists(m => m.type == t);
+    _turnModifiers.Contains(t);
+    
 
     // --- Momentum Limit hooks ---
     public void OnAdvance()

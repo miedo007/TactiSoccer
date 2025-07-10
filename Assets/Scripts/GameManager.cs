@@ -265,7 +265,7 @@ private void InitializeMatch()
     if (enableModifiers)
     {
         matchModifierManager.PickRandomModifiers();
-        PopulateModifiersUI();
+
     }
     if (enablePowerUps)
         powerUpSpawner.SpawnDrops();
@@ -352,10 +352,20 @@ private void InitializeMatch()
         modifierDraftPanel.Reveal(_playerPick, _aiPick);
         matchModifierManager.ApplyTurnModifiers(_playerPick.type, _aiPick.type);
 
+         // populate the rulesPanel with exactly these two picks:
+    var sb = new System.Text.StringBuilder();
+    sb.AppendLine($"<b>You picked:</b> {_playerPick.modifierName}");
+    sb.AppendLine(_playerPick.description);
+    sb.AppendLine();
+    sb.AppendLine($"<b>Opponent picked:</b> {_aiPick.modifierName}");
+    sb.AppendLine(_aiPick.description);
+    rulesText.text = sb.ToString();
+        
         // 2) hide that toggle so player can’t re‐show the choices until next turn
     modifierDraftPanel.SetToggleChoicesVisible(false);
     rulesButton.gameObject.SetActive(true);
 
+        StartCoroutine(ClearModifierAfter(2f));
         StartCoroutine(ContinueAfterDraft());
     }
 
@@ -1283,33 +1293,5 @@ private IEnumerator AwardGoldCoroutine()
             cellGO.GetComponent<Collider2D>().enabled = true;
     }
 
-    private void PopulateModifiersUI()
-    {
-        foreach (Transform child in modifierIconsContainer)
-            Destroy(child.gameObject);
-
-        foreach (var mod in matchModifierManager.activeModifiers)
-        {
-            var go = Instantiate(modifierIconPrefab, modifierIconsContainer);
-            var img = go.GetComponent<Image>();
-            if (img != null) img.sprite = mod.icon;
-        }
-
-        if (rulesText != null)
-{
-    var sb = new System.Text.StringBuilder();
-    foreach (var mod in matchModifierManager.activeModifiers)
-    {
-        // 1) Bold name on its own line, no colon
-        sb.AppendLine($"<b>{mod.modifierName}</b>");
-        // 2) Description on the next line, plain text
-        sb.AppendLine(mod.description);
-        // 3) Blank line to separate entries
-        sb.AppendLine();
-    }
-    rulesText.text = sb.ToString();
-}
-
-    }
 
 } // ← final closing brace for GameManager
