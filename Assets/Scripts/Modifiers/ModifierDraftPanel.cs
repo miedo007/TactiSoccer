@@ -141,4 +141,12 @@ public class ModifierDraftPanel : MonoBehaviour
     {
         // optional highlight logic
     }
+
+    /// Show or hide the “Hide/Show choices” toggle button itself.
+    /// </summary>
+    public void SetToggleChoicesVisible(bool visible)
+    {
+        toggleButton.gameObject.SetActive(visible);
+    }
+    
 }

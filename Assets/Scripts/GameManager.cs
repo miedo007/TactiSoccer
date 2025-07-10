@@ -200,8 +200,17 @@ public class GameManager : MonoBehaviour
     // If you still have the old rulesPanel in your scene, hide it so it never blocks clicks.
     if (rulesPanel != null)
         rulesPanel.SetActive(false);
+        
+        // 2) wire up the toggle button so the player can always open it later
+    rulesButton.onClick.RemoveAllListeners();
+    rulesButton.onClick.AddListener(() =>
+    {
 
-    // (We no longer wire up rulesButton here; that block has been removed.)
+            rulesPanel.SetActive(!rulesPanel.activeSelf);
+    });
+
+      // **this is the trick**: always keep it on top
+    rulesButton.transform.SetAsLastSibling();
 
     // Cache penalty visuals
     penaltyBallStartPos   = penaltyBall.anchoredPosition;
@@ -297,6 +306,8 @@ private void InitializeMatch()
 {
     matchModifierManager.ClearTurnModifiers();
     _playerPick = _aiPick = null;
+      // make sure the “Hide Choices” toggle is back
+    modifierDraftPanel.SetToggleChoicesVisible(true);
 
     // attacker always gets Offensive+Tactical, defender Defensive+Tactical
     var offenseCats = new[] {
@@ -338,8 +349,19 @@ private void InitializeMatch()
         if (_playerPick == null || _aiPick == null) return;
         modifierDraftPanel.Reveal(_playerPick, _aiPick);
         matchModifierManager.ApplyTurnModifiers(_playerPick.type, _aiPick.type);
+
+        // 2) hide that toggle so player can’t re‐show the choices until next turn
+    modifierDraftPanel.SetToggleChoicesVisible(false);
+
         StartCoroutine(ContinueAfterDraft());
     }
+
+    private IEnumerator ClearRulesPanelAfterDelay(float delay)
+{
+    yield return new WaitForSeconds(delay);
+    rulesPanel.SetActive(false);
+    rulesText.text = "";
+}
 
     private IEnumerator ContinueAfterDraft()
     {
