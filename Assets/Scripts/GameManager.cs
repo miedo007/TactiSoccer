@@ -347,12 +347,13 @@ private void InitializeMatch()
     }
 
     private void TryResolveDraft()
-    {
-        if (_playerPick == null || _aiPick == null) return;
-        modifierDraftPanel.Reveal(_playerPick, _aiPick);
-        matchModifierManager.ApplyTurnModifiers(_playerPick.type, _aiPick.type);
+{
+    if (_playerPick == null || _aiPick == null) return;
 
-         // populate the rulesPanel with exactly these two picks:
+    modifierDraftPanel.Reveal(_playerPick, _aiPick);
+    matchModifierManager.ApplyTurnModifiers(_playerPick.type, _aiPick.type);
+
+    // Fill out and show the rules panel
     var sb = new System.Text.StringBuilder();
     sb.AppendLine($"<b>You picked:</b> {_playerPick.modifierName}");
     sb.AppendLine(_playerPick.description);
@@ -360,21 +361,26 @@ private void InitializeMatch()
     sb.AppendLine($"<b>Opponent picked:</b> {_aiPick.modifierName}");
     sb.AppendLine(_aiPick.description);
     rulesText.text = sb.ToString();
-        
-        // 2) hide that toggle so player can’t re‐show the choices until next turn
-    modifierDraftPanel.SetToggleChoicesVisible(false);
+    rulesPanel.SetActive(true);
     rulesButton.gameObject.SetActive(true);
 
-        StartCoroutine(ClearModifierAfter(2f));
-        StartCoroutine(ContinueAfterDraft());
-    }
+    // Hide the draft-toggle until next turn
+    modifierDraftPanel.SetToggleChoicesVisible(false);
 
-    private IEnumerator ClearRulesPanelAfterDelay(float delay)
+    // Auto-hide the rules panel (and clear text) after 3 seconds
+    StartCoroutine(HideRulesPanelDelayed(3f));
+
+    // continue the turn
+    StartCoroutine(ContinueAfterDraft());
+}
+
+private IEnumerator HideRulesPanelDelayed(float delay)
 {
     yield return new WaitForSeconds(delay);
     rulesPanel.SetActive(false);
     rulesText.text = "";
 }
+
 
     private IEnumerator ContinueAfterDraft()
     {
