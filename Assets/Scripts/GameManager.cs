@@ -200,6 +200,7 @@ public class GameManager : MonoBehaviour
     // If you still have the old rulesPanel in your scene, hide it so it never blocks clicks.
     if (rulesPanel != null)
         rulesPanel.SetActive(false);
+        rulesButton.gameObject.SetActive(false);
         
         // 2) wire up the toggle button so the player can always open it later
     rulesButton.onClick.RemoveAllListeners();
@@ -308,6 +309,7 @@ private void InitializeMatch()
     _playerPick = _aiPick = null;
       // make sure the “Hide Choices” toggle is back
     modifierDraftPanel.SetToggleChoicesVisible(true);
+    rulesButton.gameObject.SetActive(false);
 
     // attacker always gets Offensive+Tactical, defender Defensive+Tactical
     var offenseCats = new[] {
@@ -352,6 +354,7 @@ private void InitializeMatch()
 
         // 2) hide that toggle so player can’t re‐show the choices until next turn
     modifierDraftPanel.SetToggleChoicesVisible(false);
+    rulesButton.gameObject.SetActive(true);
 
         StartCoroutine(ContinueAfterDraft());
     }
