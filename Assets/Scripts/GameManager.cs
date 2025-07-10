@@ -290,6 +290,9 @@ private void InitializeMatch()
 
     void StartNewTurn()
     {
+        rulesPanel.SetActive(false);
+    rulesText.text = "";
+    rulesButton.gameObject.SetActive(false);
         _inputLocked = true;
         phase = Phase.ChoosingModifiers;
         StartCoroutine(BeginModifierDraftWithDelay());
@@ -378,7 +381,7 @@ private IEnumerator HideRulesPanelDelayed(float delay)
 {
     yield return new WaitForSeconds(delay);
     rulesPanel.SetActive(false);
-    rulesText.text = "";
+    
 }
 
 
