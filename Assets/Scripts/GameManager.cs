@@ -1074,81 +1074,82 @@ private IEnumerator PenaltySequence(Actor attacker)
     _allowedColumns.Clear();
     if (tr < 0 || tr >= gridManager.rows) return;
 
-    // 1) Build initial baseCols (GridMastery, adjacency, or full row)
+    // 1) BASE: adjacency vs full row (Grid Mastery)
+    List<int> cols;
     bool gm = enableModifiers && matchModifierManager.IsGridMasteryReady();
-    List<int> baseCols;
-
     if (gm)
     {
-        Debug.Log("[HighlightRow] GridMastery override! allowing all columns.");
-        baseCols = Enumerable.Range(0, gridManager.cols).ToList();
+        cols = Enumerable.Range(0, gridManager.cols).ToList();
         matchModifierManager.ConsumeGridMastery();
     }
     else if (restrictToAdjacent)
     {
-        baseCols = GetAdjacentColumns();
+        cols = GetAdjacentColumns();
     }
     else
     {
-        baseCols = Enumerable.Range(0, gridManager.cols).ToList();
+        cols = Enumerable.Range(0, gridManager.cols).ToList();
     }
 
-    // 2) Power-up / BurnedColumn / LockedColumn filters
-    if (enablePowerUps)
-        baseCols = baseCols
-            .Where(c => powerUpManager.GetAllowedColumns(attacker.ToString()).Contains(c))
-            .ToList();
-
-    if (enableModifiers && matchModifierManager.HasModifier(
-            MatchModifierDefinition.ModifierType.BurnedColumn))
-        baseCols.Remove(matchModifierManager.GetLastUsedColumn(attacker));
-
-    if (enableModifiers && matchModifierManager.HasModifier(
-            MatchModifierDefinition.ModifierType.LockedColumn))
-        baseCols.Remove(matchModifierManager.GetLockedColumn());
-
-    // ── NEW: Blockade ──
-    // if we're in defense phase and the defender is blocked, limit to two columns
-    if (phase == Phase.AwaitingDefense && enableModifiers)
+    // 2) DEFENSIVE (hard) — prune down to exactly what remains
+    if (enableModifiers)
     {
-        var defender = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
-        if (matchModifierManager.IsBlockadeReady(defender))
-        {
-            baseCols = baseCols
-                .OrderBy(_ => Random.value)
-                .Take(Mathf.Min(2, baseCols.Count))
-                .ToList();
+        // Burned Column
+        if (matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
+            cols.Remove(matchModifierManager.GetLastUsedColumn(attacker));
 
-            matchModifierManager.ConsumeBlockade(defender);
-            ShowModifier("Blockade!\nDefender limited to 2 columns", 3f);
+        // Locked Column
+        if (matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn))
+            cols.Remove(matchModifierManager.GetLockedColumn());
+
+        // Blockade (defender only)
+        if (phase == Phase.AwaitingDefense)
+        {
+            var defender = attacker == Actor.Player ? Actor.AI : Actor.Player;
+            if (matchModifierManager.IsBlockadeReady(defender))
+            {
+                cols = cols.OrderBy(_ => Random.value)
+                           .Take(2)
+                           .ToList();
+                matchModifierManager.ConsumeBlockade(defender);
+                ShowModifier("Blockade!\nDefender limited to 2 columns", 3f);
+            }
+        }
+
+        // Sabotage (attacker only)
+        if (matchModifierManager.IsSabotageReady(attacker))
+        {
+            cols = cols.OrderBy(_ => Random.value)
+                       .Take(2)
+                       .ToList();
+            matchModifierManager.ConsumeSabotage(attacker);
+            ShowModifier("Sabotage!\nAttacker limited to 2 columns", 3f);
         }
     }
 
-    // ——— Sabotage override ———
-    // attacker next turn may only choose two columns
-    if (enableModifiers
-        && matchModifierManager.IsSabotageReady(attacker))
-    {
-        Debug.Log("[HighlightRow] Sabotage! attacker limited to 2 columns.");
-        // randomly pick two from whatever is left
-        baseCols = baseCols
-            .OrderBy(_ => UnityEngine.Random.value)
-            .Take(2)
-            .ToList();
-        matchModifierManager.ConsumeSabotage(attacker);
-    }
-
-    // 3) Highlight & cache
-    foreach (int c in baseCols)
+    // 3) HIGHLIGHT & cache these final columns
+    foreach (int c in cols)
     {
         _allowedColumns.Add(c);
         gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
     }
 
-    // 4) Your existing warning-colors (MomentumLimit, DynamicCorridor, CounterStrike…)
+    // 4) TACTICAL / OFFENSIVE (soft) — tint the already-highlighted cells
+    //  a) Quit-or-Double
     if (enableModifiers
-        && matchModifierManager.HasModifier(
-               MatchModifierDefinition.ModifierType.MomentumLimit)
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble))
+    {
+        int qo = matchModifierManager.GetQuitOrDoubleColumn();
+        if (cols.Contains(qo))
+        {
+            var sr = gridManager.cells[tr, qo].GetComponent<SpriteRenderer>();
+            sr.color = new Color(1f, 0f, 1f, 0.5f);
+        }
+    }
+
+    //  b) Momentum Limit (red)
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
         && !matchModifierManager.CanAdvance())
     {
         foreach (int c in _allowedColumns)
@@ -1158,6 +1159,7 @@ private IEnumerator PenaltySequence(Actor attacker)
         }
     }
 
+    //  c) Dynamic Corridor (blue)
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.DynamicCorridor)
         && matchModifierManager.IsDynamicCorridorReady(attacker))
@@ -1169,6 +1171,7 @@ private IEnumerator PenaltySequence(Actor attacker)
         }
     }
 
+    //  d) Counter Strike (purple)
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.CounterStrike)
         && matchModifierManager.IsCounterStrikeReady(attacker))
@@ -1177,6 +1180,18 @@ private IEnumerator PenaltySequence(Actor attacker)
         {
             var sr = gridManager.cells[tr, c].GetComponent<SpriteRenderer>();
             sr.color = new Color(0.5f, 0f, 0.5f, 0.5f);
+        }
+    }
+
+    //  e) Flight Path (cyan)
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath))
+    {
+        int fp = matchModifierManager.GetFastLaneColumn();
+        if (_allowedColumns.Contains(fp))
+        {
+            var sr = gridManager.cells[tr, fp].GetComponent<SpriteRenderer>();
+            sr.color = new Color(0f, 1f, 1f, 0.5f);
         }
     }
 }
