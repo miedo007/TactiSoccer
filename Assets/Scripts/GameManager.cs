@@ -1070,11 +1070,12 @@ private IEnumerator PenaltySequence(Actor attacker)
 
    private void HighlightRow(int tr, Actor attacker)
 {
+    // 1) Clear any previous highlights and cache
     ClearHighlights();
     _allowedColumns.Clear();
     if (tr < 0 || tr >= gridManager.rows) return;
 
-    // 1) BASE: adjacency vs full row (Grid Mastery)
+    // 2) BASE: adjacency vs full row (Grid Mastery)
     List<int> cols;
     bool gm = enableModifiers && matchModifierManager.IsGridMasteryReady();
     if (gm)
@@ -1091,7 +1092,7 @@ private IEnumerator PenaltySequence(Actor attacker)
         cols = Enumerable.Range(0, gridManager.cols).ToList();
     }
 
-    // 2) DEFENSIVE (hard) — prune down to exactly what remains
+    // 3) DEFENSIVE (hard constraints) — prune away columns
     if (enableModifiers)
     {
         // Burned Column
@@ -1127,76 +1128,65 @@ private IEnumerator PenaltySequence(Actor attacker)
         }
     }
 
-    // 3) HIGHLIGHT & cache these final columns
+    // 4) Highlight & cache the surviving columns
     foreach (int c in cols)
     {
         _allowedColumns.Add(c);
         gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
     }
 
-    // 4) TACTICAL / OFFENSIVE (soft) — tint the already-highlighted cells
-    //  a) Quit-or-Double
-    if (enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble))
+    // 5) TACTICAL/OFFENSIVE (soft) — tint those already-highlighted cells
+
+    // Quit-or-Double (magenta)
+    if (enableModifiers &&
+        matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble))
     {
         int qo = matchModifierManager.GetQuitOrDoubleColumn();
-        if (cols.Contains(qo))
-        {
-            var sr = gridManager.cells[tr, qo].GetComponent<SpriteRenderer>();
-            sr.color = new Color(1f, 0f, 1f, 0.5f);
-        }
+        if (_allowedColumns.Contains(qo))
+            gridManager.cells[tr, qo].GetComponent<SpriteRenderer>()
+                       .color = new Color(1f, 0f, 1f, 0.5f);
     }
 
-    //  b) Momentum Limit (red)
+    // Momentum Limit (red)
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
         && !matchModifierManager.CanAdvance())
     {
         foreach (int c in _allowedColumns)
-        {
-            var sr = gridManager.cells[tr, c].GetComponent<SpriteRenderer>();
-            sr.color = new Color(1f, 0f, 0f, 0.5f);
-        }
+            gridManager.cells[tr, c].GetComponent<SpriteRenderer>()
+                       .color = new Color(1f, 0f, 0f, 0.5f);
     }
 
-    //  c) Dynamic Corridor (blue)
+    // Dynamic Corridor (blue)
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.DynamicCorridor)
         && matchModifierManager.IsDynamicCorridorReady(attacker))
     {
         foreach (int c in _allowedColumns)
-        {
-            var sr = gridManager.cells[tr, c].GetComponent<SpriteRenderer>();
-            sr.color = new Color(0f, 0f, 1f, 0.5f);
-        }
+            gridManager.cells[tr, c].GetComponent<SpriteRenderer>()
+                       .color = new Color(0f, 0f, 1f, 0.5f);
     }
 
-    //  d) Counter Strike (purple)
+    // Counter Strike (purple)
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.CounterStrike)
         && matchModifierManager.IsCounterStrikeReady(attacker))
     {
         foreach (int c in _allowedColumns)
-        {
-            var sr = gridManager.cells[tr, c].GetComponent<SpriteRenderer>();
-            sr.color = new Color(0.5f, 0f, 0.5f, 0.5f);
-        }
+            gridManager.cells[tr, c].GetComponent<SpriteRenderer>()
+                       .color = new Color(0.5f, 0f, 0.5f, 0.5f);
     }
 
-    //  e) Flight Path (cyan)
-    if (enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath))
+    // Flight Path (cyan)
+    if (enableModifiers &&
+        matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath))
     {
         int fp = matchModifierManager.GetFastLaneColumn();
         if (_allowedColumns.Contains(fp))
-        {
-            var sr = gridManager.cells[tr, fp].GetComponent<SpriteRenderer>();
-            sr.color = new Color(0f, 1f, 1f, 0.5f);
-        }
+            gridManager.cells[tr, fp].GetComponent<SpriteRenderer>()
+                       .color = new Color(0f, 1f, 1f, 0.5f);
     }
 }
-
-
 
 
 
