@@ -443,6 +443,14 @@ public void ApplyTurnModifiers(
     _turnModifiers.Add(playerPick);
     _turnModifiers.Add(aiPick);
 
+    // — NEW: if LockedColumn was picked this turn, pick and store a real column now —
+    if (playerPick == MatchModifierDefinition.ModifierType.LockedColumn
+     || aiPick     == MatchModifierDefinition.ModifierType.LockedColumn)
+    {
+        _lockedColumn = Random.Range(0, _gridManager.cols);
+        Debug.Log($"[ApplyTurnModifiers] LockedColumn set to {_lockedColumn}");
+    }
+
     // Arm DoubleAdvance if either pick is it
     if (playerPick == MatchModifierDefinition.ModifierType.DoubleAdvance
      || aiPick     == MatchModifierDefinition.ModifierType.DoubleAdvance)
@@ -465,6 +473,7 @@ public void ApplyTurnModifiers(
     if (aiPick == MatchModifierDefinition.ModifierType.Blockade)
         _blockadeReadyPlayer = true; // AI blocked Player’s defense
 
+    // ── Sabotage: attacker’s next move only 2 columns ──
     if (playerPick == MatchModifierDefinition.ModifierType.Sabotage)
         _sabotageReadyAI = true;
     if (aiPick == MatchModifierDefinition.ModifierType.Sabotage)
@@ -479,18 +488,18 @@ public void ApplyTurnModifiers(
     }
 
     /// ── Arm CounterSurge only for the defender ──
-        if (playerPick == MatchModifierDefinition.ModifierType.CounterSurge)
-{
-    _counterSurgeReadyPlayer = true;
-    Debug.Log("[ApplyTurnModifiers] CounterSurge armed for Player!");
+    if (playerPick == MatchModifierDefinition.ModifierType.CounterSurge)
+    {
+        _counterSurgeReadyPlayer = true;
+        Debug.Log("[ApplyTurnModifiers] CounterSurge armed for Player!");
+    }
+    if (aiPick == MatchModifierDefinition.ModifierType.CounterSurge)
+    {
+        _counterSurgeReadyAI = true;
+        Debug.Log("[ApplyTurnModifiers] CounterSurge armed for AI!");
+    }
 }
 
-if (aiPick == MatchModifierDefinition.ModifierType.CounterSurge)
-{
-    _counterSurgeReadyAI = true;
-    Debug.Log("[ApplyTurnModifiers] CounterSurge armed for AI!");
-}
-}
 
 
 /// <summary>

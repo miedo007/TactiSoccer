@@ -1068,12 +1068,13 @@ private IEnumerator PenaltySequence(Actor attacker)
         else                                  penaltyDefendChoice = idx;
     }
 
-   private void HighlightRow(int tr, Actor attacker)
+  private void HighlightRow(int tr, Actor attacker)
 {
     // 1) Clear any previous highlights and cache
     ClearHighlights();
     _allowedColumns.Clear();
-    if (tr < 0 || tr >= gridManager.rows) return;
+    if (tr < 0 || tr >= gridManager.rows)
+        return;
 
     // 2) BASE: adjacency vs full row (Grid Mastery)
     List<int> cols;
@@ -1092,18 +1093,26 @@ private IEnumerator PenaltySequence(Actor attacker)
         cols = Enumerable.Range(0, gridManager.cols).ToList();
     }
 
-    // 3) DEFENSIVE (hard constraints) — prune away columns
+    // 3) DEFENSIVE (hard constraints) — prune or override as needed
     if (enableModifiers)
     {
-        // Burned Column
-        if (matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
-            cols.Remove(matchModifierManager.GetLastUsedColumn(attacker));
-
-        // Locked Column
+        // — LockedColumn: remove that column from the set —
         if (matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn))
-            cols.Remove(matchModifierManager.GetLockedColumn());
+        {
+            int locked = matchModifierManager.GetLockedColumn();
+            if (locked >= 0 && locked < gridManager.cols)
+                cols.Remove(locked);
+        }
 
-        // Blockade (defender only)
+        // — BurnedColumn: remove last-used column —
+        if (matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
+        {
+            int burned = matchModifierManager.GetLastUsedColumn(attacker);
+            if (burned >= 0 && burned < gridManager.cols)
+                cols.Remove(burned);
+        }
+
+        // — Blockade (defender only): override to exactly 2 columns —
         if (phase == Phase.AwaitingDefense)
         {
             var defender = attacker == Actor.Player ? Actor.AI : Actor.Player;
@@ -1117,7 +1126,7 @@ private IEnumerator PenaltySequence(Actor attacker)
             }
         }
 
-        // Sabotage (attacker only)
+        // — Sabotage (attacker only): override to exactly 2 columns —
         if (matchModifierManager.IsSabotageReady(attacker))
         {
             cols = cols.OrderBy(_ => Random.value)
@@ -1187,6 +1196,7 @@ private IEnumerator PenaltySequence(Actor attacker)
                        .color = new Color(0f, 1f, 1f, 0.5f);
     }
 }
+
 
 
 

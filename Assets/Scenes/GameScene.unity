@@ -2383,14 +2383,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   allModifiers:
   - {fileID: 11400000, guid: ac8e34a4173ed90428d6b46a23dfb8ce, type: 2}
-  - {fileID: 11400000, guid: a90915b8549b5e7489c15eebb6d55aa6, type: 2}
   - {fileID: 11400000, guid: 0c384f1765087fd47bd057fb13f445d4, type: 2}
   - {fileID: 11400000, guid: 372cf088c1a11374f80de2be57b1c43e, type: 2}
   - {fileID: 11400000, guid: c56f76b35d03b7948b349a5b35197bff, type: 2}
-  - {fileID: 11400000, guid: 1d5cb588663dbcb4baea53425b1ddfb3, type: 2}
   - {fileID: 11400000, guid: 8a87c6132910e7f40aa207b246f9af78, type: 2}
   - {fileID: 11400000, guid: e9f399bc6839a824ca97041f25f58b2c, type: 2}
-  activeModifiers: []
 --- !u!1 &476552956
 GameObject:
   m_ObjectHideFlags: 0
@@ -5708,7 +5705,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1062568475
 RectTransform:
   m_ObjectHideFlags: 0
