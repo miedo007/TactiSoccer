@@ -1068,83 +1068,94 @@ private IEnumerator PenaltySequence(Actor attacker)
         else                                  penaltyDefendChoice = idx;
     }
 
-  private void HighlightRow(int tr, Actor attacker)
+ private void HighlightRow(int tr, Actor attacker)
 {
-    // 1) Clear any previous highlights and cache
+    // 1) Clear any previous highlights + reset all colliders
     ClearHighlights();
     _allowedColumns.Clear();
     if (tr < 0 || tr >= gridManager.rows)
         return;
 
     // 2) BASE: adjacency vs full row (Grid Mastery)
-    List<int> cols;
+    List<int> movement;
     bool gm = enableModifiers && matchModifierManager.IsGridMasteryReady();
     if (gm)
     {
-        cols = Enumerable.Range(0, gridManager.cols).ToList();
+        movement = Enumerable.Range(0, gridManager.cols).ToList();
         matchModifierManager.ConsumeGridMastery();
     }
     else if (restrictToAdjacent)
     {
-        cols = GetAdjacentColumns();
+        movement = GetAdjacentColumns();
     }
     else
     {
-        cols = Enumerable.Range(0, gridManager.cols).ToList();
+        movement = Enumerable.Range(0, gridManager.cols).ToList();
     }
 
-    // 3) DEFENSIVE (hard constraints) — prune or override as needed
-    if (enableModifiers)
+    // 3) DEFENSIVE pruning: use the manager's lockedCol
+    int lockedCol = -1;
+    if (enableModifiers && matchModifierManager.HasModifier(
+            MatchModifierDefinition.ModifierType.LockedColumn))
     {
-        // — LockedColumn: remove that column from the set —
-        if (matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn))
+        lockedCol = matchModifierManager.GetLockedColumn();
+        if (movement.Contains(lockedCol))
         {
-            int locked = matchModifierManager.GetLockedColumn();
-            if (locked >= 0 && locked < gridManager.cols)
-                cols.Remove(locked);
+            movement.Remove(lockedCol);
+            ShowModifier($"Column {lockedCol + 1} locked!", 2f);
         }
+        else
+        {
+            lockedCol = -1; // fallback if out of range
+        }
+    }
 
-        // — BurnedColumn: remove last-used column —
-        if (matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
-        {
-            int burned = matchModifierManager.GetLastUsedColumn(attacker);
-            if (burned >= 0 && burned < gridManager.cols)
-                cols.Remove(burned);
-        }
+    // BurnedColumn
+    if (enableModifiers && matchModifierManager.HasModifier(
+            MatchModifierDefinition.ModifierType.BurnedColumn))
+    {
+        int burned = matchModifierManager.GetLastUsedColumn(attacker);
+        movement.Remove(burned);
+    }
 
-        // — Blockade (defender only): override to exactly 2 columns —
-        if (phase == Phase.AwaitingDefense)
+    // Blockade (defender-only override)
+    if (enableModifiers && phase == Phase.AwaitingDefense)
+    {
+        var defender = attacker == Actor.Player ? Actor.AI : Actor.Player;
+        if (matchModifierManager.IsBlockadeReady(defender))
         {
-            var defender = attacker == Actor.Player ? Actor.AI : Actor.Player;
-            if (matchModifierManager.IsBlockadeReady(defender))
-            {
-                cols = cols.OrderBy(_ => Random.value)
-                           .Take(2)
-                           .ToList();
-                matchModifierManager.ConsumeBlockade(defender);
-                ShowModifier("Blockade!\nDefender limited to 2 columns", 3f);
-            }
+            movement = movement.OrderBy(_ => Random.value).Take(2).ToList();
+            matchModifierManager.ConsumeBlockade(defender);
+            ShowModifier("Blockade!\nDefender limited to 2 columns", 3f);
         }
+    }
 
-        // — Sabotage (attacker only): override to exactly 2 columns —
-        if (matchModifierManager.IsSabotageReady(attacker))
-        {
-            cols = cols.OrderBy(_ => Random.value)
-                       .Take(2)
-                       .ToList();
-            matchModifierManager.ConsumeSabotage(attacker);
-            ShowModifier("Sabotage!\nAttacker limited to 2 columns", 3f);
-        }
+    // Sabotage (attacker-only override)
+    if (enableModifiers && matchModifierManager.IsSabotageReady(attacker))
+    {
+        movement = movement.OrderBy(_ => Random.value).Take(2).ToList();
+        matchModifierManager.ConsumeSabotage(attacker);
+        ShowModifier("Sabotage!\nAttacker limited to 2 columns", 3f);
     }
 
     // 4) Highlight & cache the surviving columns
-    foreach (int c in cols)
+    foreach (int c in movement)
     {
         _allowedColumns.Add(c);
         gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
     }
 
-    // 5) TACTICAL/OFFENSIVE (soft) — tint those already-highlighted cells
+    // 5) Tint & disable exactly the locked column
+    if (lockedCol >= 0)
+    {
+        var cellGO = gridManager.cells[tr, lockedCol];
+        var sr     = cellGO.GetComponent<SpriteRenderer>();
+        if (sr != null) sr.color = new Color(1f, 0f, 0f, 0.5f);
+        var col2d  = cellGO.GetComponent<Collider2D>();
+        if (col2d != null) col2d.enabled = false;
+    }
+
+    // 6) TACTICAL/OFFENSIVE (soft) — tint those already-highlighted cells
 
     // Quit-or-Double (magenta)
     if (enableModifiers &&
@@ -1157,6 +1168,14 @@ private IEnumerator PenaltySequence(Actor attacker)
     }
 
     // Momentum Limit (red)
+    if (enableModifiers &&
+        matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble))
+    {
+        int qo = matchModifierManager.GetQuitOrDoubleColumn();
+        if (_allowedColumns.Contains(qo))
+            gridManager.cells[tr, qo].GetComponent<SpriteRenderer>()
+                       .color = new Color(1f, 0f, 1f, 0.5f);
+    }
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
         && !matchModifierManager.CanAdvance())
@@ -1165,8 +1184,6 @@ private IEnumerator PenaltySequence(Actor attacker)
             gridManager.cells[tr, c].GetComponent<SpriteRenderer>()
                        .color = new Color(1f, 0f, 0f, 0.5f);
     }
-
-    // Dynamic Corridor (blue)
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.DynamicCorridor)
         && matchModifierManager.IsDynamicCorridorReady(attacker))
@@ -1175,8 +1192,6 @@ private IEnumerator PenaltySequence(Actor attacker)
             gridManager.cells[tr, c].GetComponent<SpriteRenderer>()
                        .color = new Color(0f, 0f, 1f, 0.5f);
     }
-
-    // Counter Strike (purple)
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.CounterStrike)
         && matchModifierManager.IsCounterStrikeReady(attacker))
@@ -1185,8 +1200,6 @@ private IEnumerator PenaltySequence(Actor attacker)
             gridManager.cells[tr, c].GetComponent<SpriteRenderer>()
                        .color = new Color(0.5f, 0f, 0.5f, 0.5f);
     }
-
-    // Flight Path (cyan)
     if (enableModifiers &&
         matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath))
     {
@@ -1198,21 +1211,31 @@ private IEnumerator PenaltySequence(Actor attacker)
 }
 
 
-
-
     private void ClearHighlights()
+{
+    foreach (var cellGO in gridManager.AllCells)
     {
-        foreach (var cellGO in gridManager.AllCells)
-            cellGO.GetComponent<Cell>().Highlight(false);
-    }
+        // turn off highlight graphic
+        cellGO.GetComponent<Cell>().Highlight(false);
 
-    private List<int> GetAdjacentColumns()
-    {
-        var adj = new List<int> { ballCol };
-        if (ballCol - 1 >= 0) adj.Add(ballCol - 1);
-        if (ballCol + 1 < gridManager.cols) adj.Add(ballCol + 1);
-        return adj;
+        // reset any sprite tint
+        var sr = cellGO.GetComponent<SpriteRenderer>();
+        if (sr != null) sr.color = Color.white;
+
+        // re-enable collider so we can selectively turn them off later
+        var col2d = cellGO.GetComponent<Collider2D>();
+        if (col2d != null) col2d.enabled = true;
     }
+}
+
+private List<int> GetAdjacentColumns()
+{
+    var adj = new List<int> { ballCol };
+    if (ballCol - 1 >= 0)           adj.Add(ballCol - 1);
+    if (ballCol + 1 < gridManager.cols) adj.Add(ballCol + 1);
+    return adj;
+}
+
 
     private int AIAttackGuess() =>
         _allowedColumns.Count > 0
