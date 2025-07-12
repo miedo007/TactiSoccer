@@ -443,6 +443,15 @@ public void ApplyTurnModifiers(
     _turnModifiers.Add(playerPick);
     _turnModifiers.Add(aiPick);
 
+    // 2) Log *every* pick so you can verify PushThrough shows up
+    Debug.Log($"[MatchModifierManager] Player picked {playerPick}, AI picked {aiPick}");
+    
+    // ←— ADD THIS BLOCK:
+    if (playerPick == MatchModifierDefinition.ModifierType.PushThrough)
+        Debug.Log("[MatchModifierManager] Player armed PushThrough");
+    if (aiPick == MatchModifierDefinition.ModifierType.PushThrough)
+        Debug.Log("[MatchModifierManager] AI armed PushThrough");
+
     // — NEW: if LockedColumn was picked this turn, pick and store a real column now —
     if (playerPick == MatchModifierDefinition.ModifierType.LockedColumn
      || aiPick     == MatchModifierDefinition.ModifierType.LockedColumn)

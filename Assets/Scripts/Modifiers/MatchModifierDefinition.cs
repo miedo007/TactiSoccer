@@ -41,7 +41,8 @@ public class MatchModifierDefinition : ScriptableObject
         Blockade,
         Slipstream,
         CounterSurge,   
-        Sabotage,           
+        Sabotage, 
+        PushThrough,          
         DoubleAdvance 
         // (you can add more here later)
     }
