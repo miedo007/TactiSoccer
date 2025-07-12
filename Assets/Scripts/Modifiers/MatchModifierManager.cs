@@ -445,20 +445,12 @@ public void ApplyTurnModifiers(
 
     // 2) Log *every* pick so you can verify PushThrough shows up
     Debug.Log($"[MatchModifierManager] Player picked {playerPick}, AI picked {aiPick}");
-    
+
     // ←— ADD THIS BLOCK:
     if (playerPick == MatchModifierDefinition.ModifierType.PushThrough)
         Debug.Log("[MatchModifierManager] Player armed PushThrough");
     if (aiPick == MatchModifierDefinition.ModifierType.PushThrough)
         Debug.Log("[MatchModifierManager] AI armed PushThrough");
-
-    // — NEW: if LockedColumn was picked this turn, pick and store a real column now —
-    if (playerPick == MatchModifierDefinition.ModifierType.LockedColumn
-     || aiPick     == MatchModifierDefinition.ModifierType.LockedColumn)
-    {
-        _lockedColumn = Random.Range(0, _gridManager.cols);
-        Debug.Log($"[ApplyTurnModifiers] LockedColumn set to {_lockedColumn}");
-    }
 
     // Arm DoubleAdvance if either pick is it
     if (playerPick == MatchModifierDefinition.ModifierType.DoubleAdvance
