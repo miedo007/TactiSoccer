@@ -453,20 +453,7 @@ if (possession != Actor.Player)
         fastCell.GetComponent<SpriteRenderer>().color =
             new Color(0f, 1f, 1f, 0.5f);
     }
-    
-    //    f) Highlight Locked‐Column (red)
-    if (enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn))
-    {
-        int lockedCol = matchModifierManager.GetLockedColumn();
-        if (lockedCol >= 0 && targetRow >= 0 && targetRow < gridManager.rows)
-        {
-            var lockCell = gridManager.cells[targetRow, lockedCol].GetComponent<Cell>();
-            lockCell.Highlight(true);
-            lockCell.GetComponent<SpriteRenderer>().color =
-                new Color(1f, 0f, 0f, 0.5f);
-        }
-    }
+
     
     //    g) Highlight Quit‐or‐Double (magenta)
     if (enableModifiers
@@ -1075,7 +1062,7 @@ private IEnumerator PenaltySequence(Actor attacker)
 
 private void HighlightRow(int tr, Actor attacker)
 {
-    // 1) Clear previous highlights & colliders
+    // 1) Clear previous highlights & re-enable all colliders
     ClearHighlights();
     _allowedColumns.Clear();
     if (tr < 0 || tr >= gridManager.rows) return;
@@ -1096,7 +1083,7 @@ private void HighlightRow(int tr, Actor attacker)
         movement = Enumerable.Range(0, gridManager.cols).ToList();
     }
 
-    // 3) LOCKED COLUMN: pick one from movement once
+    // 3) LOCKED COLUMN: pick one once
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn)
         && _lockedColThisTurn < 0
@@ -1105,13 +1092,13 @@ private void HighlightRow(int tr, Actor attacker)
         _lockedColThisTurn = movement[Random.Range(0, movement.Count)];
         ShowModifier($"Column {_lockedColThisTurn + 1} locked!", 2f);
     }
-    // 3) if we’re defending, remove that column so it can’t be chosen
+    //    remove it if we're DEFENDING
     if (phase == Phase.AwaitingDefense && _lockedColThisTurn >= 0)
     {
         movement.Remove(_lockedColThisTurn);
     }
 
-    // 4) PRUNE BurnedColumn
+    // 4) BURNED COLUMN
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
     {
@@ -1119,7 +1106,7 @@ private void HighlightRow(int tr, Actor attacker)
         movement.Remove(burned);
     }
 
-    // 5) Blockade (defender-only)
+    // 5) BLOCKADE (defender-only)
     if (enableModifiers && phase == Phase.AwaitingDefense)
     {
         var defender = attacker == Actor.Player ? Actor.AI : Actor.Player;
@@ -1131,7 +1118,7 @@ private void HighlightRow(int tr, Actor attacker)
         }
     }
 
-    // 6) Sabotage (attacker-only)
+    // 6) SABOTAGE (attacker-only)
     if (enableModifiers && matchModifierManager.IsSabotageReady(attacker))
     {
         movement = movement.OrderBy(_ => Random.value).Take(2).ToList();
@@ -1139,7 +1126,7 @@ private void HighlightRow(int tr, Actor attacker)
         ShowModifier("Sabotage!\nAttacker limited to 2 columns", 3f);
     }
 
-    // 7) PUSH THROUGH: pick one blocked column once
+    // 7) PUSH THROUGH: pick one once
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.PushThrough)
         && _pushThroughBlockedCol < 0
@@ -1149,64 +1136,43 @@ private void HighlightRow(int tr, Actor attacker)
         if (phase == Phase.PlayerAttack)
             ShowModifier($"PushThrough → blocking col {_pushThroughBlockedCol + 1}", 2f);
     }
+    //    remove it if we're DEFENDING
     if (phase == Phase.AwaitingDefense && _pushThroughBlockedCol >= 0)
     {
         movement.Remove(_pushThroughBlockedCol);
     }
 
     // 8) Highlight & cache survivors
-    foreach (var c in movement)
+    foreach (int c in movement)
     {
         _allowedColumns.Add(c);
         gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
     }
 
-    // 9) LockedColumn: red highlight & disable collider
+    // 9) LOCKED COLUMN: red + disable for DEFENSE
     if (_lockedColThisTurn >= 0)
-{
-    var lockedCell = gridManager.cells[tr, _lockedColThisTurn];
-    lockedCell.GetComponent<Cell>().Highlight(true);
-    var sr = lockedCell.GetComponent<SpriteRenderer>();
-    if (sr != null) sr.color = new Color(1f, 0f, 0f, 0.5f);
-    if (phase == Phase.AwaitingDefense)
-        lockedCell.GetComponent<Collider2D>().enabled = false;
-}// 2) PushThrough: yellow for attacker, red for defender
-
-if (_pushThroughBlockedCol >= 0)
-{
-    var pushCell = gridManager.cells[tr, _pushThroughBlockedCol];
-    pushCell.GetComponent<Cell>().Highlight(true);
-    var sr = pushCell.GetComponent<SpriteRenderer>();
-    if (sr != null)
     {
-        if (phase == Phase.PlayerAttack)
-            sr.color = new Color(1f, 1f, 0f, 0.5f);  // yellow
-        else
-            sr.color = new Color(1f, 0f, 0f, 0.5f);  // red
+        var lockedCell = gridManager.cells[tr, _lockedColThisTurn];
+        lockedCell.GetComponent<Cell>().Highlight(true);
+        var sr = lockedCell.GetComponent<SpriteRenderer>();
+        if (sr != null) sr.color = new Color(1f, 0f, 0f, 0.5f);
+        if (phase == Phase.AwaitingDefense)
+            lockedCell.GetComponent<Collider2D>().enabled = false;
     }
-    pushCell.GetComponent<Collider2D>().enabled = (phase == Phase.AwaitingDefense);
-}
 
-    // 10) PushThrough: attacker sees yellow, defender sees red + disabled
-    if (enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.PushThrough)
-        && _pushThroughBlockedCol >= 0)
+    // 10) PUSH THROUGH: yellow for ATTACK, red+disable for DEFENSE
+    if (_pushThroughBlockedCol >= 0)
     {
-        var go = gridManager.cells[tr, _pushThroughBlockedCol];
-        if (phase == Phase.PlayerAttack)
-        {
-            go.GetComponent<Cell>().Highlight(true);
-            var sr = go.GetComponent<SpriteRenderer>();
-            if (sr != null) sr.color = new Color(1f, 1f, 0f, 0.5f);
-            go.GetComponent<Collider2D>().enabled = true;
-        }
-        else // defender
-        {
-            go.GetComponent<Cell>().Highlight(true);
-            var sr = go.GetComponent<SpriteRenderer>();
-            if (sr != null) sr.color = new Color(1f, 0f, 0f, 0.5f);
-            go.GetComponent<Collider2D>().enabled = false;
-        }
+        var pushCell = gridManager.cells[tr, _pushThroughBlockedCol];
+        pushCell.GetComponent<Cell>().Highlight(true);
+        var sr = pushCell.GetComponent<SpriteRenderer>();
+        if (sr != null)
+            sr.color = (phase == Phase.PlayerAttack)
+                ? new Color(1f, 1f, 0f, 0.5f)  // yellow
+                : new Color(1f, 0f, 0f, 0.5f); // red
+
+        // only attacker may still click it
+        pushCell.GetComponent<Collider2D>().enabled = (phase == Phase.PlayerAttack);
     }
 
     // 11) Tactical/offensive tints...
@@ -1219,7 +1185,8 @@ if (_pushThroughBlockedCol >= 0)
                        .color = new Color(1f, 0f, 1f, 0.5f);
     }
 
-    if (enableModifiers && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
+    if (enableModifiers &&
+        matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
         && !matchModifierManager.CanAdvance())
     {
         foreach (int c in _allowedColumns)
@@ -1227,7 +1194,8 @@ if (_pushThroughBlockedCol >= 0)
                        .color = new Color(1f, 0f, 0f, 0.5f);
     }
 
-    if (enableModifiers && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.DynamicCorridor)
+    if (enableModifiers &&
+        matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.DynamicCorridor)
         && matchModifierManager.IsDynamicCorridorReady(attacker))
     {
         foreach (int c in _allowedColumns)
@@ -1235,7 +1203,8 @@ if (_pushThroughBlockedCol >= 0)
                        .color = new Color(0f, 0f, 1f, 0.5f);
     }
 
-    if (enableModifiers && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.CounterStrike)
+    if (enableModifiers &&
+        matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.CounterStrike)
         && matchModifierManager.IsCounterStrikeReady(attacker))
     {
         foreach (int c in _allowedColumns)
@@ -1243,7 +1212,8 @@ if (_pushThroughBlockedCol >= 0)
                        .color = new Color(0.5f, 0f, 0.5f, 0.5f);
     }
 
-    if (enableModifiers && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath))
+    if (enableModifiers &&
+        matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath))
     {
         int fp = matchModifierManager.GetFastLaneColumn();
         if (_allowedColumns.Contains(fp))
@@ -1286,53 +1256,45 @@ private List<int> GetAdjacentColumns()
 
     private int AI_DefenseGuess()
 {
-    // 1) Compute the defense row
-    int tr = (possession == Actor.Player) ? ballRow + 1 : ballRow - 1;
-    if (tr < 0 || tr >= gridManager.rows)
-        return Random.Range(0, gridManager.cols);
-
-    // 2) Build the base list (adjacent vs full)
-    List<int> choices = restrictToAdjacent
+    var choices = restrictToAdjacent
         ? GetAdjacentColumns()
         : Enumerable.Range(0, gridManager.cols).ToList();
 
-    // 3) LockedColumn
-    if (enableModifiers && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn))
-    {
-        int locked = matchModifierManager.GetLockedColumn();
-        choices.Remove(locked);
-    }
+    // LockedColumn
+    if (enableModifiers &&
+        matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn) &&
+        _lockedColThisTurn >= 0)
+        choices.Remove(_lockedColThisTurn);
 
-    // 4) BurnedColumn
-    if (enableModifiers && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
+    // BurnedColumn
+    if (enableModifiers &&
+        matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
     {
-        int burned = matchModifierManager.GetLastUsedColumn((possession == Actor.Player) ? Actor.AI : Actor.Player);
+        var burned = matchModifierManager.GetLastUsedColumn(
+            possession == Actor.Player ? Actor.AI : Actor.Player);
         choices.Remove(burned);
     }
 
-    // 5) Blockade (defender-only)
-    if (enableModifiers && matchModifierManager.IsBlockadeReady((possession == Actor.Player) ? Actor.AI : Actor.Player))
+    // Blockade
+    if (enableModifiers &&
+        matchModifierManager.IsBlockadeReady(
+            possession == Actor.Player ? Actor.AI : Actor.Player))
     {
         choices = choices.OrderBy(_ => Random.value).Take(2).ToList();
     }
 
-    // 6) Sabotage DOES NOT apply here (it’s attacker-only)
-
-    // 7) PushThrough
-    if (enableModifiers && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.PushThrough)
-        && _pushThroughBlockedCol >= 0)
-    {
+    // PushThrough
+    if (enableModifiers &&
+        matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.PushThrough) &&
+        _pushThroughBlockedCol >= 0)
         choices.Remove(_pushThroughBlockedCol);
-    }
 
-    // 8) Any other “prune” modifiers you add in the future go here…
+    if (choices.Count == 0)
+        return Random.Range(0, gridManager.cols);
 
-    // 9) Final pick
-    if (choices.Count > 0)
-    {
-        Debug.Log($"[GameManager] AI Defense choices: {string.Join(", ", choices)}");
-        return choices[Random.Range(0, choices.Count)];
-    }
+    Debug.Log($"[GameManager] AI Defense choices: {string.Join(", ", choices)}");
+    return choices[Random.Range(0, choices.Count)];
+
     // Fallback
     return Random.Range(0, gridManager.cols);
 }
@@ -1426,4 +1388,5 @@ private IEnumerator AwardGoldCoroutine()
     }
 
 
-} // ← final closing brace for GameManager
+}
+ // ← final closing brace for GameManager
