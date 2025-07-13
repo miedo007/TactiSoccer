@@ -1105,7 +1105,7 @@ private void HighlightRow(int tr, Actor attacker)
         _lockedColThisTurn = movement[Random.Range(0, movement.Count)];
         ShowModifier($"Column {_lockedColThisTurn + 1} locked!", 2f);
     }
-    // remove for defender
+    // 3) if we’re defending, remove that column so it can’t be chosen
     if (phase == Phase.AwaitingDefense && _lockedColThisTurn >= 0)
     {
         movement.Remove(_lockedColThisTurn);
@@ -1155,7 +1155,7 @@ private void HighlightRow(int tr, Actor attacker)
     }
 
     // 8) Highlight & cache survivors
-    foreach (int c in movement)
+    foreach (var c in movement)
     {
         _allowedColumns.Add(c);
         gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
@@ -1163,14 +1163,29 @@ private void HighlightRow(int tr, Actor attacker)
 
     // 9) LockedColumn: red highlight & disable collider
     if (_lockedColThisTurn >= 0)
+{
+    var lockedCell = gridManager.cells[tr, _lockedColThisTurn];
+    lockedCell.GetComponent<Cell>().Highlight(true);
+    var sr = lockedCell.GetComponent<SpriteRenderer>();
+    if (sr != null) sr.color = new Color(1f, 0f, 0f, 0.5f);
+    if (phase == Phase.AwaitingDefense)
+        lockedCell.GetComponent<Collider2D>().enabled = false;
+}// 2) PushThrough: yellow for attacker, red for defender
+
+if (_pushThroughBlockedCol >= 0)
+{
+    var pushCell = gridManager.cells[tr, _pushThroughBlockedCol];
+    pushCell.GetComponent<Cell>().Highlight(true);
+    var sr = pushCell.GetComponent<SpriteRenderer>();
+    if (sr != null)
     {
-        var go = gridManager.cells[tr, _lockedColThisTurn];
-        go.GetComponent<Cell>().Highlight(true);                           // show highlight
-        var sr = go.GetComponent<SpriteRenderer>(); 
-        if (sr != null) sr.color = new Color(1f, 0f, 0f, 0.5f);           // red tint
-        var col2d = go.GetComponent<Collider2D>();
-        if (col2d != null) col2d.enabled = false;                         // unclickable
+        if (phase == Phase.PlayerAttack)
+            sr.color = new Color(1f, 1f, 0f, 0.5f);  // yellow
+        else
+            sr.color = new Color(1f, 0f, 0f, 0.5f);  // red
     }
+    pushCell.GetComponent<Collider2D>().enabled = (phase == Phase.AwaitingDefense);
+}
 
     // 10) PushThrough: attacker sees yellow, defender sees red + disabled
     if (enableModifiers
