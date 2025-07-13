@@ -10,10 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a51caa599e9a02042870821e2c921f57, type: 3}
-  m_Name: ColumnLoyalty
+  m_Name: BurnedColumn_totweak
   m_EditorClassIdentifier: 
-  modifierName: Column Loyalty
-  description: Advance twice in the same column to leap two rows on your second advance.
-  icon: {fileID: 7706766155818749191, guid: 1d0d7909dfd2be549be1ab82cb66ff32, type: 3}
-  category: 0
-  type: 4
+  modifierName: Burned Column
+  description: "After you pick a column, you can\u2019t pick it on your next turn.
+    It reset after a tackle."
+  icon: {fileID: -8236111372781299411, guid: a9e820c77e651594c9130319d66be1f0, type: 3}
+  category: 2
+  type: 1

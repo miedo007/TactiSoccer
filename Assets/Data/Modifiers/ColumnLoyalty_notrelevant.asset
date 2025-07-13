@@ -10,11 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a51caa599e9a02042870821e2c921f57, type: 3}
-  m_Name: Counter Strike
+  m_Name: ColumnLoyalty_notrelevant
   m_EditorClassIdentifier: 
-  modifierName: Counter Strike
-  description: After two successful tackles, the next tackle by that side pushes
-    the ball two rows instead of one.
-  icon: {fileID: 0}
-  category: 2
-  type: 8
+  modifierName: Column Loyalty
+  description: Advance twice in the same column to leap two rows on your second advance.
+  icon: {fileID: 7706766155818749191, guid: 1d0d7909dfd2be549be1ab82cb66ff32, type: 3}
+  category: 0
+  type: 4

@@ -17,6 +17,11 @@ public class GameManager : MonoBehaviour
     public GameObject ballPrefab;
     public GameObject aiPrefab;
 
+    [Header("Draft Settings")]
+[Tooltip("How many modifiers to offer each turn (2 or 3)")]
+[SerializeField, Range(2, 3)] 
+private int draftSize = 3;
+
     [Header("Lose Prefabs (drag here)")]
     public GameObject playerLosePrefab;
     public GameObject aiLosePrefab;
@@ -315,7 +320,6 @@ private void InitializeMatch()
 {
     matchModifierManager.ClearTurnModifiers();
     _playerPick = _aiPick = null;
-      // make sure the “Hide Choices” toggle is back
     modifierDraftPanel.SetToggleChoicesVisible(true);
     rulesButton.gameObject.SetActive(false);
 
@@ -329,16 +333,22 @@ private void InitializeMatch()
         MatchModifierDefinition.ModifierCategory.Tactical
     };
 
-    if (possession == Actor.Player)
-    {
-        _playerDraft = matchModifierManager.DraftThree(offenseCats);
-        _aiDraft     = matchModifierManager.DraftThree(defenseCats);
-    }
-    else
-    {
-        _playerDraft = matchModifierManager.DraftThree(defenseCats);
-        _aiDraft     = matchModifierManager.DraftThree(offenseCats);
-    }
+    // choose pools based on possession
+    var playerPool = (possession == Actor.Player) ? offenseCats : defenseCats;
+    var aiPool     = (possession == Actor.Player) ? defenseCats : offenseCats;
+
+    // draft three, then randomly trim down to draftSize
+    _playerDraft = matchModifierManager
+        .DraftThree(playerPool)
+        .OrderBy(_ => Random.value)
+        .Take(draftSize)
+        .ToList();
+
+    _aiDraft = matchModifierManager
+        .DraftThree(aiPool)
+        .OrderBy(_ => Random.value)
+        .Take(draftSize)
+        .ToList();
 
     modifierDraftPanel.Show(_playerDraft, OnPlayerModifierChosen);
     modifierDraftPanel.transform.SetAsLastSibling();
