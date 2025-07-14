@@ -43,7 +43,8 @@ public class MatchModifierDefinition : ScriptableObject
         CounterSurge,   
         Sabotage, 
         PushThrough,          
-        DoubleAdvance 
+        DoubleAdvance,
+        ForcedDiagonal 
         // (you can add more here later)
     }
 }

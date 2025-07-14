@@ -22,6 +22,7 @@ public class GameManager : MonoBehaviour
 [SerializeField, Range(2, 3)] 
 private int draftSize = 3;
 
+
     [Header("Lose Prefabs (drag here)")]
     public GameObject playerLosePrefab;
     public GameObject aiLosePrefab;
@@ -33,7 +34,10 @@ private int draftSize = 3;
     public GameObject revealMarkerAIPrefab;
     [Tooltip("Delay between player reveal and AI reveal.")]
     public float revealStaggerDelay = 0.2f;
-
+ 
+ [Tooltip("If true, once a modifier is picked it won't be offered again until the match ends")]
+    [SerializeField] private bool uniqueDraft = true;
+   
     [Header("Penalty UI (Canvas)")]
     public GameObject penaltyPanel;
     public Button[] penaltyButtons;
@@ -268,13 +272,16 @@ private void InitializeMatch()
     possession = (Random.value < 0.5f) ? Actor.Player : Actor.AI;
     SpawnCharacter();
 
+    // reset used‐set at start of match
+    matchModifierManager.ResetUsedModifiers();
+
+    // push your inspector toggle into the manager
+    matchModifierManager.UniqueDraft = uniqueDraft;
+
     // power-ups & modifiers if enabled
     ClearFieldPowerUps();
     if (enableModifiers)
-    {
         matchModifierManager.PickRandomModifiers();
-
-    }
     if (enablePowerUps)
         powerUpSpawner.SpawnDrops();
 
@@ -333,26 +340,19 @@ private void InitializeMatch()
         MatchModifierDefinition.ModifierCategory.Tactical
     };
 
-    // choose pools based on possession
-    var playerPool = (possession == Actor.Player) ? offenseCats : defenseCats;
-    var aiPool     = (possession == Actor.Player) ? defenseCats : offenseCats;
+    // pick the right category‐sets for player vs AI
+    var playerCats = (possession == Actor.Player) ? offenseCats : defenseCats;
+    var   aiCats   = (possession == Actor.Player) ? defenseCats : offenseCats;
 
-    // draft three, then randomly trim down to draftSize
-    _playerDraft = matchModifierManager
-        .DraftThree(playerPool)
-        .OrderBy(_ => Random.value)
-        .Take(draftSize)
-        .ToList();
+    // draft exactly `draftSize` for each
+    _playerDraft = matchModifierManager.Draft(draftSize, playerCats);
+    _aiDraft     = matchModifierManager.Draft(draftSize,   aiCats);
 
-    _aiDraft = matchModifierManager
-        .DraftThree(aiPool)
-        .OrderBy(_ => Random.value)
-        .Take(draftSize)
-        .ToList();
-
+    // show in UI
     modifierDraftPanel.Show(_playerDraft, OnPlayerModifierChosen);
     modifierDraftPanel.transform.SetAsLastSibling();
 
+    // AI picks immediately from its new draft
     _aiPick = _aiDraft[Random.Range(0, _aiDraft.Count)];
 }
 
@@ -1151,6 +1151,14 @@ private void HighlightRow(int tr, Actor attacker)
     {
         movement.Remove(_pushThroughBlockedCol);
     }
+
+    // — NEW: Forced Diagonal (defender) —
+if (enableModifiers
+    && matchModifierManager.HasModifier(
+         MatchModifierDefinition.ModifierType.ForcedDiagonal))
+{
+    movement = movement.Where(col => col != ballCol).ToList();
+}
 
     // 8) Highlight & cache survivors
     foreach (int c in movement)

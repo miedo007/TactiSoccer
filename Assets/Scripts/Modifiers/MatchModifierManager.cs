@@ -7,7 +7,9 @@ public class MatchModifierManager : MonoBehaviour
     [Tooltip("All possible Modifiers")]
     public List<MatchModifierDefinition> allModifiers;
 
-   
+   [Header("Draft Settings")]
+    [Tooltip("When true, once a modifier is picked it won't be offered again until the match ends")]
+    [SerializeField] private bool uniqueDraft = true;
 
     // --- Define incompatible pairs here ---
     private static readonly Dictionary<
@@ -100,6 +102,8 @@ public class MatchModifierManager : MonoBehaviour
     private int  _aiTackleCount               = 0;
     private bool _counterStrikeReadyPlayer    = false;
     private bool _counterStrikeReadyAI        = false;
+    
+    
     void Awake()
     {
         _gridManager = Object.FindFirstObjectByType<GridManager>();
@@ -108,9 +112,28 @@ public class MatchModifierManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Toggleable from GameManager.InitializeMatch()
+    /// </summary>
+    public bool UniqueDraft 
+    {
+        get => uniqueDraft;
+        set => uniqueDraft = value;
+    }
+
+    private HashSet<MatchModifierDefinition.ModifierType> _usedModifiers
+        = new HashSet<MatchModifierDefinition.ModifierType>();
+
+    public void ResetUsedModifiers()
+{
+    _usedModifiers.Clear();
+}
+
+    /// <summary>
     /// Randomly pick up to 2 modifiers at the start of each match,
     /// reset all counters, and ensure incompatible pairs are never both selected.
     /// </summary>
+    
+    
     public void PickRandomModifiers()
     {
 
@@ -418,19 +441,48 @@ public void ConsumeCounterStrike(GameManager.Actor actor)
     }
 }
 /// <summary>
-/// Returns three random modifier definitions for your draft UI.
-/// </summary>
-public List<MatchModifierDefinition> DraftThree()
-{
-    // copy and shuffle your full list:
-    var pool = new List<MatchModifierDefinition>(allModifiers);
-    for (int i = 0; i < pool.Count; i++) {
-        int j = Random.Range(i, pool.Count);
-        var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+    /// Draft `count` modifiers from only the allowed categories.
+    /// Respects `uniqueDraft` (never re-offer until Reset) and
+    /// will reshuffle the used set if pool exhaustion is hit.
+    /// </summary>
+    public List<MatchModifierDefinition> Draft(
+        int count,
+        params MatchModifierDefinition.ModifierCategory[] allowedCategories
+    )
+    {
+        // 1) build & filter pool
+        var pool = allModifiers
+            .Where(m => allowedCategories.Contains(m.category))
+            .ToList();
+        if (uniqueDraft)
+            pool = pool.Where(m => !_usedModifiers.Contains(m.type)).ToList();
+
+        // 2) exhaustion? reshuffle used & rebuild
+        if (uniqueDraft && pool.Count < count)
+        {
+            _usedModifiers.Clear();
+            pool = allModifiers
+                .Where(m => allowedCategories.Contains(m.category))
+                .ToList();
+        }
+
+        // 3) shuffle
+        for (int i = 0; i < pool.Count; i++)
+        {
+            int j = Random.Range(i, pool.Count);
+            var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+        }
+
+        // 4) take up to `count`
+        var draft = pool.Take(Mathf.Min(count, pool.Count)).ToList();
+
+        // 5) mark used
+        if (uniqueDraft)
+            foreach (var m in draft)
+                _usedModifiers.Add(m.type);
+
+        return draft;
     }
-    // take the first three
-    return pool.Take(3).ToList();
-}
 
 /// <summary>
 /// Apply exactly these two picks for the current turn.
@@ -501,32 +553,26 @@ public void ApplyTurnModifiers(
     }
 }
 
-
-
 /// <summary>
 /// Clears last turn’s picks; call at the start of each new draft.
 /// </summary>
 public void ClearTurnModifiers() {
     _turnModifiers.Clear();
+
+    // one-shot flags:
+    _slipstreamReady          = false;
+    _doubleAdvanceReady       = false;
+    _gridMasteryReady         = false;
+    _blockadeReadyPlayer      = false;
+    _blockadeReadyAI          = false;
+    _sabotageReadyPlayer      = false;
+    _sabotageReadyAI          = false;
+    _counterSurgeReadyPlayer  = false;
+    _counterSurgeReadyAI      = false;
+    _counterStrikeReadyPlayer = false;
+    _counterStrikeReadyAI     = false;
 }
 
-/// <summary>
-    /// Pick three random modifiers whose category is in allowedCategories.
-    /// </summary>
-    public List<MatchModifierDefinition> DraftThree(params 
-        MatchModifierDefinition.ModifierCategory[] allowedCategories)
-    {
-        var pool = allModifiers
-            .Where(m => allowedCategories.Contains(m.category))
-            .ToList();
-        // shuffle & take 3
-        for (int i = 0; i < pool.Count; i++)
-        {
-            var j = Random.Range(i, pool.Count);
-            var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
-        }
-        return pool.Take(Mathf.Min(3, pool.Count)).ToList();
-    }
 
     /// <summary>
     /// Returns true if the next dribble should advance +2 rows.
