@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a51caa599e9a02042870821e2c921f57, type: 3}
   m_Name: ForcedDiagonal
   m_EditorClassIdentifier: 
-  modifierName: ForcedDiagonal
-  description: 
+  modifierName: Forced Diagonal
+  description: Opponent must make a diagonal move.
   icon: {fileID: 0}
   category: 1
   type: 16

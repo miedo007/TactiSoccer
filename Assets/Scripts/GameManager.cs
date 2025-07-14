@@ -1296,54 +1296,323 @@ private List<int> GetAdjacentColumns()
 }
 
 
-    private int AIAttackGuess() =>
-        _allowedColumns.Count > 0
-            ? _allowedColumns[Random.Range(0, _allowedColumns.Count)]
-            : Random.Range(0, gridManager.cols);
-
-    private int AI_DefenseGuess()
+// ───────────────────────────────────────────────────────────────────────
+// PURE HELPER: get legal columns for a given row & attacker, with no UI side-effects
+// ───────────────────────────────────────────────────────────────────────
+private List<int> GetLegalMoves(int tr, Actor mover)
 {
-    var choices = restrictToAdjacent
-        ? GetAdjacentColumns()
-        : Enumerable.Range(0, gridManager.cols).ToList();
+    List<int> movement;
+    if (enableModifiers && matchModifierManager.IsGridMasteryReady())
+        movement = Enumerable.Range(0, gridManager.cols).ToList();
+    else if (restrictToAdjacent)
+        movement = GetAdjacentColumns();
+    else
+        movement = Enumerable.Range(0, gridManager.cols).ToList();
 
-    // LockedColumn
-    if (enableModifiers &&
-        matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn) &&
-        _lockedColThisTurn >= 0)
-        choices.Remove(_lockedColThisTurn);
-
-    // BurnedColumn
-    if (enableModifiers &&
-        matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
+    // Locked Column: remove when mover is the defender
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn)
+        && _lockedColThisTurn >= 0
+        && mover != possession)
     {
-        var burned = matchModifierManager.GetLastUsedColumn(
-            possession == Actor.Player ? Actor.AI : Actor.Player);
-        choices.Remove(burned);
+        movement.Remove(_lockedColThisTurn);
     }
 
-    // Blockade
-    if (enableModifiers &&
-        matchModifierManager.IsBlockadeReady(
-            possession == Actor.Player ? Actor.AI : Actor.Player))
+    // Burned Column
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
     {
-        choices = choices.OrderBy(_ => Random.value).Take(2).ToList();
+        var burned = matchModifierManager.GetLastUsedColumn(mover);
+        movement.Remove(burned);
     }
 
-    // PushThrough
-    if (enableModifiers &&
-        matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.PushThrough) &&
-        _pushThroughBlockedCol >= 0)
-        choices.Remove(_pushThroughBlockedCol);
+    // Blockade (defender‐only)
+    if (enableModifiers
+        && mover != possession
+        && matchModifierManager.IsBlockadeReady(mover))
+    {
+        movement = movement.OrderBy(_ => Random.value)
+                           .Take(2)
+                           .ToList();
+    }
 
+    // PushThrough (defender‐only)
+    if (enableModifiers
+        && mover != possession
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.PushThrough)
+        && _pushThroughBlockedCol >= 0)
+    {
+        movement.Remove(_pushThroughBlockedCol);
+    }
+
+    // ForcedDiagonal (applies to both)
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.ForcedDiagonal))
+    {
+        movement = movement.Where(col => col != ballCol).ToList();
+    }
+
+    // Mirror Clash (attacker‐only): attacker must go straight
+    if (enableModifiers
+        && mover == possession
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MirrorClash))
+    {
+        movement = movement.Where(col => col == ballCol).ToList();
+    }
+
+    return movement;
+}
+
+
+
+// ───────────────────────────────────────────────────────────────────────
+// 1) Scoring helpers
+// ───────────────────────────────────────────────────────────────────────
+private float ScoreAttackColumn(int col)
+{
+    // 0) Never allow the locked column
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn)
+        && col == matchModifierManager.GetLockedColumn())
+    {
+        return float.NegativeInfinity;
+    }
+
+    // 1) Mirror Clash (attacker-only): must go straight if active
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MirrorClash)
+        && col != ballCol)
+    {
+        return float.NegativeInfinity;
+    }
+
+    float score = 0f;
+    int cols   = gridManager.cols;
+    int center = cols / 2;
+
+    // 2) slight center bias
+    score += 1f - (Mathf.Abs(col - center) / (float)center);
+
+    if (enableModifiers)
+    {
+        if (matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.DoubleAdvance))
+            score += 2f;
+
+        if (matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.EdgeBurst)
+            && (col == 0 || col == cols - 1))
+            score += 3f;
+
+        if (matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath)
+            && col == matchModifierManager.GetFastLaneColumn())
+            score += 4f;
+
+        if (matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.PushThrough)
+            && col == _pushThroughBlockedCol)
+            score += 5f;
+
+        if (matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.Slipstream)
+            && col != ballCol)
+            score += 3f;
+
+        if (matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble)
+            && col == matchModifierManager.GetQuitOrDoubleColumn())
+            score += 5f;
+    }
+
+    // 3) tiny randomness to break ties
+    score += Random.Range(-0.5f, 0.5f);
+    return score;
+}
+
+private float ScoreDefenseColumn(int col)
+{
+    float score = 0f;
+    int cols   = gridManager.cols;
+    int center = cols / 2;
+
+    // Base: slight center bias
+    score += 1f - (Mathf.Abs(col - center) / (float)center);
+
+    if (enableModifiers)
+    {
+        // ── 1) Block Flight Path: highest priority ──
+        if (matchModifierManager.HasModifier(
+                MatchModifierDefinition.ModifierType.FlightPath))
+        {
+            int fpCol = matchModifierManager.GetFastLaneColumn();
+            if (col == fpCol)
+            {
+                // big bonus to defend exactly the Flight Path column
+                score += 6f;
+            }
+            else
+            {
+                // optional: slightly discourage other spots
+                score -= 1f;
+            }
+        }
+
+        // ── 2) Stop Slipstream if active ──
+        if (matchModifierManager.HasModifier(
+                MatchModifierDefinition.ModifierType.Slipstream)
+            && col != ballCol)
+        {
+            score += 4f;
+        }
+
+        // ── 3) Counter Surge ──
+        if (matchModifierManager.HasModifier(
+                MatchModifierDefinition.ModifierType.CounterSurge))
+            score += 3f;
+
+        // ── 4) Forced Diagonal ──
+        if (matchModifierManager.HasModifier(
+                MatchModifierDefinition.ModifierType.ForcedDiagonal)
+            && col != ballCol)
+            score += 2f;
+
+        // ── 5) Mirror Clash ──
+        if (matchModifierManager.HasModifier(
+                MatchModifierDefinition.ModifierType.MirrorClash))
+        {
+            int mirror = 2 * center - attackChoice;
+            if (col == mirror)
+                score += 3f;
+        }
+
+        // ── 6) Stall ──
+        if (matchModifierManager.HasModifier(
+                MatchModifierDefinition.ModifierType.Stall)
+            && col != ballCol)
+            score += 2f;
+
+        // ── 7) Never pick Locked Column ──
+        if (matchModifierManager.HasModifier(
+                MatchModifierDefinition.ModifierType.LockedColumn)
+            && col == matchModifierManager.GetLockedColumn())
+            score -= 100f;
+    }
+
+    // Tiebreaker randomness
+    score += Random.Range(-0.5f, 0.5f);
+    return score;
+}
+
+
+// ───────────────────────────────────────────────────────────────────────
+// 2) AIAttackGuess with two-ply minimax
+// ───────────────────────────────────────────────────────────────────────
+private int AIAttackGuess()
+{
+    // 1) Prep
+    int dir     = (possession == Actor.Player) ? +1 : -1;
+    int nextRow = ballRow + dir;
+    var attacker    = possession;
+    var defender    = (possession == Actor.Player) ? Actor.AI : Actor.Player;
+    int   cols      = gridManager.cols;
+    int   center    = cols / 2;
+
+    // 2) Base legal moves for attacker
+    var moves = GetLegalMoves(nextRow, attacker);
+
+    // 3) If Mirror Clash is active, scrub out any column 'c' for which
+    //    defender could pick mirror = 2*center - c
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MirrorClash))
+    {
+        var defMoves = GetLegalMoves(nextRow, defender);
+        moves.RemoveAll(c => defMoves.Contains(2 * center - c));
+    }
+
+    // 4) Fallback if we’ve stripped everything
+    if (moves.Count == 0)
+        moves = GetLegalMoves(nextRow, attacker);
+
+    // 5) Two-ply minimax
+    int   bestCol = moves[0];
+    float bestNet = float.NegativeInfinity;
+
+    foreach (int col in moves)
+    {
+        // a) immediate attack score
+        float atkScore = ScoreAttackColumn(col);
+
+        // b) simulate attacker move
+        int oldRow = ballRow, oldCol = ballCol;
+        ballRow = nextRow;
+        ballCol = col;
+
+        // c) defender’s reply
+        var defChoices = GetLegalMoves(ballRow, defender);
+        float worstDef = float.PositiveInfinity;
+        foreach (int d in defChoices)
+            worstDef = Mathf.Min(worstDef, ScoreDefenseColumn(d));
+
+        // d) restore state
+        ballRow = oldRow;
+        ballCol = oldCol;
+
+        // e) net value
+        float net = atkScore - worstDef;
+        if (net > bestNet)
+        {
+            bestNet = net;
+            bestCol = col;
+        }
+    }
+
+    return bestCol;
+}
+
+
+// ───────────────────────────────────────────────────────────────────────
+// 3) AI_DefenseGuess with two-ply minimax
+// ───────────────────────────────────────────────────────────────────────
+private int AI_DefenseGuess()
+{
+    int dir     = (possession == Actor.Player) ? -1 : +1;
+    int nextRow = ballRow + dir;
+
+    // figure out who’s defending
+    Actor defender = (possession == Actor.Player) ? Actor.AI : Actor.Player;
+
+    // get their legal moves
+    var choices = GetLegalMoves(nextRow, defender);
     if (choices.Count == 0)
         return Random.Range(0, gridManager.cols);
 
-    Debug.Log($"[GameManager] AI Defense choices: {string.Join(", ", choices)}");
-    return choices[Random.Range(0, choices.Count)];
+    int bestDef   = choices[0];
+    float bestNet = float.PositiveInfinity;
 
-    // Fallback
-    return Random.Range(0, gridManager.cols);
+    foreach (int col in choices)
+    {
+        float defScore = ScoreDefenseColumn(col);
+
+        // simulate placing the ball there
+        int oldRow = ballRow, oldCol = ballCol;
+        ballRow = nextRow;
+        ballCol = col;
+
+        // attacker’s reply
+        var atkChoices = GetLegalMoves(ballRow, possession);
+        float bestAtk = float.NegativeInfinity;
+        foreach (int a in atkChoices)
+            bestAtk = Mathf.Max(bestAtk, ScoreAttackColumn(a));
+
+        // restore
+        ballRow = oldRow;
+        ballCol = oldCol;
+
+        float net = bestAtk - defScore;
+        if (net < bestNet)
+        {
+            bestNet = net;
+            bestDef = col;
+        }
+    }
+
+    Debug.Log($"[GameManager] AI Defense picks: {bestDef} (net={bestNet})");
+    return bestDef;
 }
 
         // -------------------------------------------------------
