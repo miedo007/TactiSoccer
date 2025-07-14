@@ -282,7 +282,7 @@ MonoBehaviour:
   playButton: {fileID: 1720805164}
   errorText: {fileID: 1766071264}
   currencyId: GOLD
-  entryFee: 0
+  entryFee: 10
   gameSceneName: GameScene
 --- !u!1 &594628554
 GameObject:
@@ -1822,7 +1822,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 263, y: 7}
+  m_AnchoredPosition: {x: 275.3, y: 7}
   m_SizeDelta: {x: 60, y: 60}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &2044952786
