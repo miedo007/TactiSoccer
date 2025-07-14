@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: LockedColumn
   m_EditorClassIdentifier: 
   modifierName: Locked Column
-  description: A specific column is disabled for the entire match.
+  description: Disable a cell for the opponent.
   icon: {fileID: 5865670524570963042, guid: 90d0bf89b1f3996408cf53f29756e1a0, type: 3}
   category: 1
   type: 3

@@ -15,5 +15,5 @@ MonoBehaviour:
   modifierName: Counter Surge
   description: Your next tackle also advances you one row.
   icon: {fileID: 0}
-  category: 0
+  category: 1
   type: 12

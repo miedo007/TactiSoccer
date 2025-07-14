@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: QuitOrDouble
   m_EditorClassIdentifier: 
   modifierName: Quit Or Double
-  description: Advance 2 on Dribble, go back 2 on Tackle
+  description: Advance 2 on Dribble, go back 2 on Tackle.
   icon: {fileID: 0}
-  category: 1
+  category: 2
   type: 9

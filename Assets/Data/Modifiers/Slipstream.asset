@@ -16,4 +16,4 @@ MonoBehaviour:
   description: Diagonal advance next turn leaps an extra row.
   icon: {fileID: 0}
   category: 0
-  type: 0
+  type: 11

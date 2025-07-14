@@ -44,7 +44,8 @@ public class MatchModifierDefinition : ScriptableObject
         Sabotage, 
         PushThrough,          
         DoubleAdvance,
-        ForcedDiagonal 
+        ForcedDiagonal,
+        EdgeBurst 
         // (you can add more here later)
     }
 }

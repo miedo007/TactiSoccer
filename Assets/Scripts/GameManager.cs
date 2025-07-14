@@ -793,7 +793,20 @@ else
     if (enableModifiers)
         matchModifierManager.SetLastUsedColumn(attacker, attackChoice);
 
-       
+// Edge Burst 
+
+int edgeBurstBoost = 0;
+if (matchModifierManager.IsEdgeBurstReady())
+{
+    bool toLeftEdge  = attackChoice == 0;
+    bool toRightEdge = attackChoice == gridManager.cols - 1;
+    if (toLeftEdge || toRightEdge)
+    {
+        edgeBurstBoost = 1;
+        ShowModifier("Edge Burst!\nExtra row from edge", 3f);
+    }
+    matchModifierManager.ConsumeEdgeBurst();
+}
 
     // Wait & clear highlights
     yield return new WaitForSeconds(tackleAnimDuration);
@@ -801,7 +814,7 @@ else
 
     // 9) Advance with all boosts (including doubleBoost)
     int dynamicBoost = dynamicCorridorActive ? 1 : 0;
-    int totalBoost = loyaltyBoost + flightBoost + quitBoost + dynamicBoost + doubleBoost + slipBoost;
+    int totalBoost = loyaltyBoost + flightBoost + quitBoost + dynamicBoost + doubleBoost + slipBoost + edgeBurstBoost;
     int newRow = ballRow + dir + (totalBoost * dir);
     ballRow = Mathf.Clamp(newRow, 0, gridManager.rows - 1);
     ballCol = attackChoice;

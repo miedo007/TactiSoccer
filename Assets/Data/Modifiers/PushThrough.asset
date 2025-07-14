@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a51caa599e9a02042870821e2c921f57, type: 3}
   m_Name: PushThrough
   m_EditorClassIdentifier: 
-  modifierName: 
-  description: 
+  modifierName: PushThrough
+  description: On your next offense, lock one column, opponent cannot pick it.
   icon: {fileID: 0}
   category: 0
-  type: 0
+  type: 14

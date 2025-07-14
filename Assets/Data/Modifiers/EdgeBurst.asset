@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a51caa599e9a02042870821e2c921f57, type: 3}
-  m_Name: DoubleAdvance
+  m_Name: EdgeBurst
   m_EditorClassIdentifier: 
-  modifierName: Double Advance
-  description: Your next Advance moves two rows.
+  modifierName: EdgeBurst
+  description: Next edge dribble jumps two rows.
   icon: {fileID: 0}
   category: 0
-  type: 15
+  type: 17

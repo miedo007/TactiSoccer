@@ -103,6 +103,9 @@ public class MatchModifierManager : MonoBehaviour
     private bool _counterStrikeReadyPlayer    = false;
     private bool _counterStrikeReadyAI        = false;
     
+    private bool _edgeBurstReady = false;
+    //public bool IsEdgeBurstReady() => _edgeBurstReady;
+   // public void ConsumeEdgeBurst() => _edgeBurstReady = false;
     
     void Awake()
     {
@@ -540,6 +543,14 @@ public void ApplyTurnModifiers(
         Debug.Log("[ApplyTurnModifiers] Slipstream armed!");
     }
 
+// ── Edge Burst: attacker next advance from an edge gets +1 row ──
+    if (playerPick == MatchModifierDefinition.ModifierType.EdgeBurst
+     || aiPick     == MatchModifierDefinition.ModifierType.EdgeBurst)
+    {
+        _edgeBurstReady = true;
+        Debug.Log("[ApplyTurnModifiers] EdgeBurst armed!");
+    }
+
     /// ── Arm CounterSurge only for the defender ──
     if (playerPick == MatchModifierDefinition.ModifierType.CounterSurge)
     {
@@ -571,6 +582,7 @@ public void ClearTurnModifiers() {
     _counterSurgeReadyAI      = false;
     _counterStrikeReadyPlayer = false;
     _counterStrikeReadyAI     = false;
+    _edgeBurstReady = false;
 }
 
 
@@ -632,4 +644,16 @@ public void ConsumeSlipstream() => _slipstreamReady = false;
         else
             _sabotageReadyAI = false;
     }
+
+    /// <summary>True if Edge Burst is armed for the next advance.</summary>
+public bool IsEdgeBurstReady()
+{
+    return _edgeBurstReady;
+}
+
+/// <summary>Consume so Edge Burst only fires once.</summary>
+public void ConsumeEdgeBurst()
+{
+    _edgeBurstReady = false;
+}
 } 
