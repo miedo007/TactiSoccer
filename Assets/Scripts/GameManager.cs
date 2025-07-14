@@ -1334,12 +1334,12 @@ private List<int> GetLegalMoves(int tr, Actor mover)
 
     // Locked Column: remove when mover is the defender
     if (enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn)
-        && _lockedColThisTurn >= 0
-        && mover != possession)
-    {
-        movement.Remove(_lockedColThisTurn);
-    }
+    && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn)
+    && _lockedColThisTurn >= 0)
+    
+{
+    movement.Remove(_lockedColThisTurn);
+}
 
     // Burned Column
     if (enableModifiers
