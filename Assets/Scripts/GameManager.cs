@@ -628,7 +628,23 @@ ClearRevealMarkers();
         yield break;
     }
 
+// 3.5 Stall (defensive): on mismatch, attacker keeps ball and no advance
+var defender = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
+if (!tackle
+    && enableModifiers
+    && matchModifierManager.IsStallReady(defender)    // only check the “ready” flag
+    && attackChoice != defendChoice)                  // it’s a mismatch
+{
+    Debug.Log($"[Stall] triggered for defender={defender}, atk={attackChoice}, def={defendChoice}");
+    matchModifierManager.ConsumeStall(defender);      // consume so it only fires once
+    ShowModifier("Stall!\nNo advance, attacker keeps the ball", 3f);
+    yield return new WaitForSeconds(afterAnimDelay);
 
+    ClearHighlights();
+    // ballRow/ballCol unchanged, attacker still has possession
+    StartNewTurn();
+    yield break;
+}
 
     // 4) Tackle or Dribble
 if (tackle)

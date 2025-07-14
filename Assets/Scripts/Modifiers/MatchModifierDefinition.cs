@@ -45,7 +45,8 @@ public class MatchModifierDefinition : ScriptableObject
         PushThrough,          
         DoubleAdvance,
         ForcedDiagonal,
-        EdgeBurst 
+        EdgeBurst,
+        Stall 
         // (you can add more here later)
     }
 }

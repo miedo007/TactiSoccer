@@ -104,8 +104,10 @@ public class MatchModifierManager : MonoBehaviour
     private bool _counterStrikeReadyAI        = false;
     
     private bool _edgeBurstReady = false;
-    //public bool IsEdgeBurstReady() => _edgeBurstReady;
-   // public void ConsumeEdgeBurst() => _edgeBurstReady = false;
+
+
+   private bool _stallReadyPlayer = false;
+    private bool _stallReadyAI     = false;
     
     void Awake()
     {
@@ -550,6 +552,18 @@ public void ApplyTurnModifiers(
         _edgeBurstReady = true;
         Debug.Log("[ApplyTurnModifiers] EdgeBurst armed!");
     }
+// ── Stall: defender’s next mismatch stalls advance ──
+if (playerPick == MatchModifierDefinition.ModifierType.Stall)
+{
+    _stallReadyPlayer = true;
+        Debug.Log("[ApplyTurnModifiers] Stall armed for Player");
+}
+if (aiPick == MatchModifierDefinition.ModifierType.Stall)
+{
+    _stallReadyAI = true;
+        Debug.Log("[ApplyTurnModifiers] Stall armed for AI");
+}
+
 
     /// ── Arm CounterSurge only for the defender ──
     if (playerPick == MatchModifierDefinition.ModifierType.CounterSurge)
@@ -583,6 +597,8 @@ public void ClearTurnModifiers() {
     _counterStrikeReadyPlayer = false;
     _counterStrikeReadyAI     = false;
     _edgeBurstReady = false;
+    _stallReadyPlayer = false;
+    _stallReadyAI     = false;
 }
 
 
@@ -656,4 +672,19 @@ public void ConsumeEdgeBurst()
 {
     _edgeBurstReady = false;
 }
+
+// new query & consume:
+public bool IsStallReady(GameManager.Actor actor) =>
+    actor == GameManager.Actor.Player
+      ? _stallReadyPlayer
+      : _stallReadyAI;
+
+public void ConsumeStall(GameManager.Actor actor)
+{
+    if (actor == GameManager.Actor.Player)
+        _stallReadyPlayer = false;
+    else
+        _stallReadyAI = false;
+}
+
 } 
