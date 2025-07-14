@@ -1326,7 +1326,7 @@ private List<int> GetLegalMoves(int tr, Actor mover)
         movement.Remove(burned);
     }
 
-    // Blockade (defender‐only)
+    // Blockade (defender-only)
     if (enableModifiers
         && mover != possession
         && matchModifierManager.IsBlockadeReady(mover))
@@ -1336,7 +1336,7 @@ private List<int> GetLegalMoves(int tr, Actor mover)
                            .ToList();
     }
 
-    // PushThrough (defender‐only)
+    // PushThrough (defender-only)
     if (enableModifiers
         && mover != possession
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.PushThrough)
@@ -1352,16 +1352,11 @@ private List<int> GetLegalMoves(int tr, Actor mover)
         movement = movement.Where(col => col != ballCol).ToList();
     }
 
-    // Mirror Clash (attacker‐only): attacker must go straight
-    if (enableModifiers
-        && mover == possession
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MirrorClash))
-    {
-        movement = movement.Where(col => col == ballCol).ToList();
-    }
+
 
     return movement;
 }
+
 
 
 
@@ -1435,7 +1430,7 @@ private float ScoreDefenseColumn(int col)
 
     if (enableModifiers)
     {
-        // ── 1) Block Flight Path: highest priority ──
+        // 1) Block Flight Path: highest priority
         if (matchModifierManager.HasModifier(
                 MatchModifierDefinition.ModifierType.FlightPath))
         {
@@ -1447,12 +1442,12 @@ private float ScoreDefenseColumn(int col)
             }
             else
             {
-                // optional: slightly discourage other spots
+                // slight penalty elsewhere
                 score -= 1f;
             }
         }
 
-        // ── 2) Stop Slipstream if active ──
+        // 2) Stop Slipstream if active
         if (matchModifierManager.HasModifier(
                 MatchModifierDefinition.ModifierType.Slipstream)
             && col != ballCol)
@@ -1460,37 +1455,47 @@ private float ScoreDefenseColumn(int col)
             score += 4f;
         }
 
-        // ── 3) Counter Surge ──
+        // 3) Counter Surge
         if (matchModifierManager.HasModifier(
                 MatchModifierDefinition.ModifierType.CounterSurge))
+        {
             score += 3f;
+        }
 
-        // ── 4) Forced Diagonal ──
+        // 4) Forced Diagonal
         if (matchModifierManager.HasModifier(
                 MatchModifierDefinition.ModifierType.ForcedDiagonal)
             && col != ballCol)
+        {
             score += 2f;
+        }
 
-        // ── 5) Mirror Clash ──
+        // 5) Mirror Clash preference
         if (matchModifierManager.HasModifier(
                 MatchModifierDefinition.ModifierType.MirrorClash))
         {
             int mirror = 2 * center - attackChoice;
             if (col == mirror)
+            {
                 score += 3f;
+            }
         }
 
-        // ── 6) Stall ──
+        // 6) Stall
         if (matchModifierManager.HasModifier(
                 MatchModifierDefinition.ModifierType.Stall)
             && col != ballCol)
+        {
             score += 2f;
+        }
 
-        // ── 7) Never pick Locked Column ──
+        // 7) Never pick Locked Column
         if (matchModifierManager.HasModifier(
                 MatchModifierDefinition.ModifierType.LockedColumn)
             && col == matchModifierManager.GetLockedColumn())
+        {
             score -= 100f;
+        }
     }
 
     // Tiebreaker randomness
