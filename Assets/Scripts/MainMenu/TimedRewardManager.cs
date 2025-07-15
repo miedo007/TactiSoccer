@@ -61,7 +61,7 @@ public class TimedRewardManager : MonoBehaviour
             if (now >= _nextClaimTime)
             {
                 rewardButton.interactable = true;
-                rewardTimerText.text = "Reward Ready!";
+                rewardTimerText.text = "Claim!";
                 yield break; // stop updating
             }
             else

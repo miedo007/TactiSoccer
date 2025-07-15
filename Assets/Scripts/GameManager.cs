@@ -1069,31 +1069,35 @@ private IEnumerator PenaltySequence(Actor attacker)
         StartNewTurn();
     }
     else
+{
+    // 1) record who won
+    _playerWon = (attacker == Actor.Player);
+
+    // 2) show the big GOAAAAAL! banner for 3 seconds
+    ShowGoalMessage("GOAAAAAL!", 3f);
+    if (attacker == Actor.Player)
     {
-        // record result so EndMatch shows correct message
-        _playerWon = (attacker == Actor.Player);
-         //  — NEW: update & submit leaderboard points —
-
-        if (attacker == Actor.Player)
-        {
-            ShowGoalMessage("GOAAAAAL!", 3f);
-            feedbackGoalForPlayer?.PlayFeedbacks();
-            feedbackMatchWin?.PlayFeedbacks();
-        }
-        else
-        {
-            ShowGoalMessage("GOAAAAAL!", 3f);
-            feedbackGoalAgainst?.PlayFeedbacks();
-            feedbackMatchLose?.PlayFeedbacks();
-        }
-
-        penaltyBall.gameObject.SetActive(false);
-        penaltyPanel.SetActive(false);
-        goalkeeperImage.gameObject.SetActive(false);
-
-        _inputLocked = false;  // unlock
-        EndMatch();
+        feedbackGoalForPlayer?.PlayFeedbacks();
+        feedbackMatchWin?.PlayFeedbacks();
     }
+    else
+    {
+        feedbackGoalAgainst?.PlayFeedbacks();
+        feedbackMatchLose?.PlayFeedbacks();
+    }
+
+    // 3) hide the penalty shoot UI immediately so the goal banner is unobstructed
+    penaltyBall.gameObject.SetActive(false);
+    penaltyPanel.SetActive(false);
+    goalkeeperImage.gameObject.SetActive(false);
+
+    // 4) wait for your goal‐message duration
+    yield return new WaitForSeconds(3f);
+
+    // 5) now unlock input and show the result popup
+    _inputLocked = false;
+    EndMatch();
+}
 }
 
 
