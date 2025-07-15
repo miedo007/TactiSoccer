@@ -1073,9 +1073,15 @@ private IEnumerator PenaltySequence(Actor attacker)
     // 1) record who won
     _playerWon = (attacker == Actor.Player);
 
-    // 2) show the big GOAAAAAL! banner for 3 seconds
+    // 2) clear any lingering turn messages
+    if (_clearMsgCoroutine != null) StopCoroutine(_clearMsgCoroutine);
+    if (_clearModifierCoroutine != null) StopCoroutine(_clearModifierCoroutine);
+    messageText.text  = "";
+    modifierText.text = "";
+
+    // 3) show the big GOAAAAAL! banner for 3 seconds
     ShowGoalMessage("GOAAAAAL!", 3f);
-    if (attacker == Actor.Player)
+    if (_playerWon)
     {
         feedbackGoalForPlayer?.PlayFeedbacks();
         feedbackMatchWin?.PlayFeedbacks();
@@ -1086,15 +1092,15 @@ private IEnumerator PenaltySequence(Actor attacker)
         feedbackMatchLose?.PlayFeedbacks();
     }
 
-    // 3) hide the penalty shoot UI immediately so the goal banner is unobstructed
+    // 4) hide the penalty‐shoot UI immediately so the goal banner is unobstructed
     penaltyBall.gameObject.SetActive(false);
     penaltyPanel.SetActive(false);
     goalkeeperImage.gameObject.SetActive(false);
 
-    // 4) wait for your goal‐message duration
+    // 5) wait for your goal‐message duration
     yield return new WaitForSeconds(3f);
 
-    // 5) now unlock input and show the result popup
+    // 6) now unlock input and show the result popup
     _inputLocked = false;
     EndMatch();
 }
