@@ -112,6 +112,10 @@ private int draftSize = 3;
     [Header("Result Popup")]
     public GameObject resultPopup;        // assign a simple panel with Text + Continue button
     public TextMeshProUGUI resultText;    // “You Win!” / “You Lose!”
+    public Image               coinIcon;       // drag in your gold‐coin sprite
+    public TextMeshProUGUI     coinText;       // “+15”
+    public Image               trophyIcon;     // drag in a trophy/leaderboard sprite
+    public TextMeshProUGUI     trophyText;     // “+12”
     public Button continueButton;         // “Continue” → back to MainMenu
 
     [Header("Reward Settings")]
@@ -1072,13 +1076,13 @@ private IEnumerator PenaltySequence(Actor attacker)
 
         if (attacker == Actor.Player)
         {
-            ShowGoalMessage("GOAAAAAL!\nYou Win!", 3f);
+            ShowGoalMessage("GOAAAAAL!", 3f);
             feedbackGoalForPlayer?.PlayFeedbacks();
             feedbackMatchWin?.PlayFeedbacks();
         }
         else
         {
-            ShowGoalMessage("GOAAAAAL!\nYou Lose!", 3f);
+            ShowGoalMessage("GOAAAAAL!", 3f);
             feedbackGoalAgainst?.PlayFeedbacks();
             feedbackMatchLose?.PlayFeedbacks();
         }
@@ -1661,18 +1665,32 @@ private int AI_DefenseGuess()
 {
     DisableGrid();
     resultText.text = _playerWon ? "You Win!" : "You Lose!";
-    resultPopup.SetActive(true);
 
-    // Disable Continue until reward logic finishes
+    // compute deltas
+    int scoreDelta = _playerWon ? +10 : -5;
+    int goldDelta  = _playerWon ? winReward : -entryFee;
+
+    // Populate UI
+    coinText.text   = (goldDelta >= 0 ? "+" : "") + goldDelta;
+    trophyText.text = (scoreDelta >= 0 ? "+" : "") + scoreDelta;
+    
+    // make sure the icons are visible (or you could hide them on 0)
+    coinIcon.enabled   = true;
+    trophyIcon.enabled = true;
+
+    resultPopup.SetActive(true);
     continueButton.interactable = false;
 
+    // on win, wait for the server call; on loss just unlock immediately
     if (_playerWon)
         StartCoroutine(AwardGoldCoroutine());
     else
-        continueButton.interactable = true;   // loser – no reward to wait for
+        continueButton.interactable = true;
 
-    int delta = _playerWon ? +10 : -5;
-    _ = CozyLeaderboards.Instance.AddScoreToLeaderboard(leaderboardID, delta);
+    // always submit leaderboard delta
+    _ = CozyLeaderboards
+            .Instance
+            .AddScoreToLeaderboard(leaderboardID, scoreDelta);
 
     continueButton.onClick.RemoveAllListeners();
     continueButton.onClick.AddListener(() => SceneManager.LoadScene("MainMenu"));
@@ -1683,21 +1701,26 @@ private int AI_DefenseGuess()
 // ---------------------------------------------
 private IEnumerator AwardGoldCoroutine()
 {
+    // 1) Fire off the GainCurrency call
     var task = CozyAPI.Instance.GainCurrency(currencyId, winReward);
 
-    while (!task.IsCompleted)         // wait for server reply
+    // 2) Wait for the server round-trip
+    while (!task.IsCompleted)
         yield return null;
 
+    // 3) Error handling
     if (task.IsFaulted)
     {
         Debug.LogException(task.Exception);
         ShowMessage("Reward failed – check connectivity", 2f);
-        // Still allow the player to leave
+    }
+    else
+    {
+        // 4) Update your in-game gold display (if you have one)
+        UpdateGoldUI();
     }
 
-    UpdateGoldUI();                   // bump in-game counter
-
-    // Re-enable Continue now that balance is updated
+    // 5) Now that gold is settled, let the player continue
     continueButton.interactable = true;
 }
 

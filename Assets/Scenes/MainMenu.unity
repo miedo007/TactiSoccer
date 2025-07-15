@@ -1053,6 +1053,10 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3560742058946629244, guid: 630d720232fa9474291924fcb7acc064, type: 3}
+      propertyPath: m_text
+      value: Points
+      objectReference: {fileID: 0}
     - target: {fileID: 3750196628796214563, guid: 630d720232fa9474291924fcb7acc064, type: 3}
       propertyPath: m_Enabled
       value: 0
