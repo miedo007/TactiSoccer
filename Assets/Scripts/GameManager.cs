@@ -1232,8 +1232,8 @@ private void HighlightRow(int tr, Actor attacker)
         if (sr != null)
         {
             sr.color = (phase == Phase.PlayerAttack)
-                ? new Color(1f, 1f, 0f, 0.5f)  // yellow
-                : new Color(1f, 0f, 0f, 0.5f); // red
+                ? new Color(1f, 1f, 0f, 0.5f)
+                : new Color(1f, 0f, 0f, 0.5f);
         }
         pushCell.GetComponent<Collider2D>().enabled = (phase == Phase.PlayerAttack);
     }
@@ -1251,7 +1251,7 @@ private void HighlightRow(int tr, Actor attacker)
             if (sr != null)
                 sr.color = new Color(1f, 0f, 1f, 0.5f);
         }
-    } // ← make sure this closes the Quit-or-Double block
+    }
 
     // 13) Momentum Limit tint
     if (enableModifiers
@@ -1292,16 +1292,17 @@ private void HighlightRow(int tr, Actor attacker)
         }
     }
 
-    // 16) Flight Path tint
+    // 16) Flight Path tint — only tint, don’t call Highlight(true) again
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath))
     {
         int fp = matchModifierManager.GetFastLaneColumn();
         if (_allowedColumns.Contains(fp))
         {
-            var cell = gridManager.cells[tr, fp].GetComponent<SpriteRenderer>();
-            if (cell != null)
-                cell.color = new Color(0f, 1f, 1f, 0.5f);
+            var fpCellGO = gridManager.cells[tr, fp];
+            var sr = fpCellGO.GetComponent<SpriteRenderer>();
+            if (sr != null)
+                sr.color = new Color(0f, 1f, 1f, 0.5f);
         }
     }
 }
