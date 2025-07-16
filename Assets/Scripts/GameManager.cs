@@ -1121,6 +1121,15 @@ private void HighlightRow(int tr, Actor attacker)
         : Enumerable.Range(0, gridManager.cols).ToList();
     // (handle GridMastery here if you need)
 
+
+// Forced Diagonal
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.ForcedDiagonal))
+    {
+        // strip out the "forward" column every time
+        movement = movement.Where(c => c != ballCol).ToList();
+    }
+    
     // ─── QUIT-OR-DOUBLE OVERRIDE ───
 // fire this override any time QoD is active, regardless of turn
 bool qodActive = enableModifiers
@@ -1219,12 +1228,7 @@ if (qodActive)
     if (phase == Phase.AwaitingDefense && _pushThroughBlockedCol >= 0)
         movement.Remove(_pushThroughBlockedCol);
 
-    // Forced Diagonal
-    if (enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.ForcedDiagonal))
-    {
-        movement = movement.Where(col => col != ballCol).ToList();
-    }
+    
 
     // ─── Finally: Highlight whatever survived ───
     foreach (int c in movement)
