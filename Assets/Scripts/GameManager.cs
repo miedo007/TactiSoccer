@@ -400,46 +400,36 @@ private IEnumerator HideRulesPanelDelayed(float delay)
 {
     yield return new WaitForSeconds(delay);
     rulesPanel.SetActive(false);
-    
 }
 
+private IEnumerator ContinueAfterDraft()
+{
+    // give player a moment to see both picks
+    yield return new WaitForSeconds(0.5f);
+    modifierDraftPanel.Hide();
 
-    private IEnumerator ContinueAfterDraft()
-    {
-        // give player a moment to see both picks
-        yield return new WaitForSeconds(0.5f);
-        modifierDraftPanel.Hide();
-
-    
     // 1) Unlock input
     _inputLocked = false;
-    
+
     // 2) Recompute the row we’ll be moving into
     int targetRow = (possession == Actor.Player)
         ? ballRow + 1
         : ballRow - 1;
-    
+
     // 3) Restore your old turn logic:
-    //    a) Set phase &, if AI’s turn, let it pick its attack
     if (possession == Actor.Player)
-{
-    phase = Phase.PlayerAttack;
-}
-else
-{
-    phase = Phase.AwaitingDefense;
-}
-    
-    //    b) Highlight the allowed cells
+        phase = Phase.PlayerAttack;
+    else
+        phase = Phase.AwaitingDefense;
+
+    // 4) Highlight the allowed cells (this will also handle the Q-o-D override for PlayerAttack)
     HighlightRow(targetRow, possession);
 
-//    c) Now let the AI pick from those highlighted columns
-if (possession != Actor.Player)
-{
-    attackChoice = AIAttackGuess();
-}
-    
-    //    c) Flight Path
+    // 5) Now let the AI pick from those highlighted columns (if it’s AI’s turn to attack)
+    if (possession != Actor.Player)
+        attackChoice = AIAttackGuess();
+
+    // 6) Flight Path
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.FlightPath)
         && _allowedColumns.Count > 0)
@@ -447,8 +437,8 @@ if (possession != Actor.Player)
         int fastFromAllowed = _allowedColumns[Random.Range(0, _allowedColumns.Count)];
         matchModifierManager.SetFastLaneColumn(fastFromAllowed);
     }
-    
-    //    d) Quit‐or‐Double
+
+    // 7) Quit-or-Double: choose the column (no UI here)
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble))
     {
@@ -456,10 +446,28 @@ if (possession != Actor.Player)
             ? _allowedColumns[Random.Range(0, _allowedColumns.Count)]
             : Random.Range(0, gridManager.cols);
         matchModifierManager.SetQuitOrDoubleColumn(qodCol);
+
+        // 7a) **Immediate override highlight** so AI’s Q-o-D pick also shows up:
+        //     white-highlight all legal cells...
+        foreach (int c in _allowedColumns)
+        {
+            var cellGO = gridManager.cells[targetRow, c];
+            cellGO.GetComponent<Cell>().Highlight(true);
+            var sr = cellGO.GetComponent<SpriteRenderer>();
+            if (sr != null) sr.color = Color.white;
+        }
+        //     …then magenta-tint exactly the Q-o-D column
+        if (_allowedColumns.Contains(qodCol))
+        {
+            var qodCell = gridManager.cells[targetRow, qodCol].GetComponent<Cell>();
+            qodCell.Highlight(true);
+            var sr = qodCell.GetComponent<SpriteRenderer>();
+            if (sr != null)
+                sr.color = new Color(1f, 0f, 1f, 0.5f);
+        }
     }
 
-    
-    //    e) Highlight Fast‐Lane (cyan)
+    // 8) Highlight Fast-Lane (cyan)
     int fastCol = matchModifierManager.GetFastLaneColumn();
     if (fastCol >= 0 && targetRow >= 0 && targetRow < gridManager.rows)
     {
@@ -470,19 +478,6 @@ if (possession != Actor.Player)
     }
 
     
-    //    g) Highlight Quit‐or‐Double (magenta)
-    if (enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble))
-    {
-        int qodCol = matchModifierManager.GetQuitOrDoubleColumn();
-        if (qodCol >= 0 && targetRow >= 0 && targetRow < gridManager.rows)
-        {
-            var qodCell = gridManager.cells[targetRow, qodCol].GetComponent<Cell>();
-            qodCell.Highlight(true);
-            qodCell.GetComponent<SpriteRenderer>().color =
-                new Color(1f, 0f, 1f, 0.5f);
-        }
-    }
     
     // and now letting OnCellClicked drive into ResolveTurn() as usual…
 }
@@ -1116,28 +1111,62 @@ private IEnumerator PenaltySequence(Actor attacker)
 
 private void HighlightRow(int tr, Actor attacker)
 {
-    // 1) Clear previous highlights & re-enable all colliders
     ClearHighlights();
     _allowedColumns.Clear();
     if (tr < 0 || tr >= gridManager.rows) return;
 
-    // 2) Build base movement list
-    List<int> movement;
-    if (enableModifiers && matchModifierManager.IsGridMasteryReady())
+    // build your base movement list (adjacent vs full)…
+    List<int> movement = restrictToAdjacent
+        ? GetAdjacentColumns()
+        : Enumerable.Range(0, gridManager.cols).ToList();
+    // (handle GridMastery here if you need)
+
+    // ─── QUIT-OR-DOUBLE OVERRIDE ───
+// fire this override any time QoD is active, regardless of turn
+bool qodActive = enableModifiers
+                 && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble);
+
+if (qodActive)
+{
+    // a) white‐highlight *all* legal moves
+    foreach (int c in movement)
     {
-        movement = Enumerable.Range(0, gridManager.cols).ToList();
-        matchModifierManager.ConsumeGridMastery();
-    }
-    else if (restrictToAdjacent)
-    {
-        movement = GetAdjacentColumns();
-    }
-    else
-    {
-        movement = Enumerable.Range(0, gridManager.cols).ToList();
+        _allowedColumns.Add(c);
+        var go = gridManager.cells[tr, c];
+        go.GetComponent<Cell>().Highlight(true);
+        var sr = go.GetComponent<SpriteRenderer>();
+        if (sr != null) sr.color = Color.white;
     }
 
-    // 3) LOCKED COLUMN: pick & remove for defense
+    // b) then magenta‐tint *only* the QoD column
+    int qodCol = matchModifierManager.GetQuitOrDoubleColumn();
+    if (_allowedColumns.Contains(qodCol))
+    {
+        var qoGO = gridManager.cells[tr, qodCol];
+        qoGO.GetComponent<Cell>().Highlight(true);
+        var sr = qoGO.GetComponent<SpriteRenderer>();
+        if (sr != null)
+            sr.color = new Color(1f, 0f, 1f, 0.5f);
+    }
+
+    // c) skip all other modifier logic
+    return;
+}
+
+    // ─── NORMAL MODIFIER LOGIC ───
+    // (locked-column, burned-column, blockade, sabotage, push-through, forced-diagonal, etc.)
+    // … your existing logic here …
+
+    // Finally: Highlight whatever survived
+    foreach (int c in movement)
+    {
+        _allowedColumns.Add(c);
+        gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
+    }
+
+    // ─── NORMAL MODIFIER LOGIC ───
+
+    // Locked Column (defender-only)
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn)
         && _lockedColThisTurn < 0
@@ -1147,19 +1176,16 @@ private void HighlightRow(int tr, Actor attacker)
         ShowModifier($"Column {_lockedColThisTurn + 1} locked!", 2f);
     }
     if (phase == Phase.AwaitingDefense && _lockedColThisTurn >= 0)
-    {
         movement.Remove(_lockedColThisTurn);
-    }
 
-    // 4) BURNED COLUMN
+    // Burned Column
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
     {
-        int burned = matchModifierManager.GetLastUsedColumn(attacker);
-        movement.Remove(burned);
+        movement.Remove(matchModifierManager.GetLastUsedColumn(attacker));
     }
 
-    // 5) BLOCKADE (defender-only)
+    // Blockade (defender-only)
     if (enableModifiers && phase == Phase.AwaitingDefense)
     {
         var defender = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
@@ -1171,19 +1197,16 @@ private void HighlightRow(int tr, Actor attacker)
         }
     }
 
-    // 6) SABOTAGE (attacker-only)
-    if (enableModifiers && phase == Phase.PlayerAttack)
+    // Sabotage (attacker-only)
+    if (enableModifiers && phase == Phase.PlayerAttack
+        && matchModifierManager.IsSabotageReady(attacker))
     {
-        var defender = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
-        if (matchModifierManager.IsSabotageReady(attacker))
-        {
-            movement = movement.OrderBy(_ => Random.value).Take(2).ToList();
-            matchModifierManager.ConsumeSabotage(attacker);
-            ShowModifier("Sabotage!\nAttacker limited to 2 columns", 3f);
-        }
+        movement = movement.OrderBy(_ => Random.value).Take(2).ToList();
+        matchModifierManager.ConsumeSabotage(attacker);
+        ShowModifier("Sabotage!\nAttacker limited to 2 columns", 3f);
     }
 
-    // 7) PUSH THROUGH: pick one & remove for defense
+    // PushThrough
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.PushThrough)
         && _pushThroughBlockedCol < 0
@@ -1194,77 +1217,47 @@ private void HighlightRow(int tr, Actor attacker)
             ShowModifier($"PushThrough → blocking col {_pushThroughBlockedCol + 1}", 2f);
     }
     if (phase == Phase.AwaitingDefense && _pushThroughBlockedCol >= 0)
-    {
         movement.Remove(_pushThroughBlockedCol);
-    }
 
-    // 8) Forced Diagonal
+    // Forced Diagonal
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.ForcedDiagonal))
     {
         movement = movement.Where(col => col != ballCol).ToList();
     }
 
-    // 9) Highlight survivors
+    // ─── Finally: Highlight whatever survived ───
     foreach (int c in movement)
     {
         _allowedColumns.Add(c);
         gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
     }
 
-    // 10) LOCKED COLUMN styling for defense
+    // Locked Column styling
     if (_lockedColThisTurn >= 0)
     {
-        var lockedCell = gridManager.cells[tr, _lockedColThisTurn];
-        lockedCell.GetComponent<Cell>().Highlight(true);
-        var sr = lockedCell.GetComponent<SpriteRenderer>();
+        var lc = gridManager.cells[tr, _lockedColThisTurn];
+        lc.GetComponent<Cell>().Highlight(true);
+        var sr = lc.GetComponent<SpriteRenderer>();
         if (sr != null) sr.color = new Color(1f, 0f, 0f, 0.5f);
         if (phase == Phase.AwaitingDefense)
-            lockedCell.GetComponent<Collider2D>().enabled = false;
+            lc.GetComponent<Collider2D>().enabled = false;
     }
 
-    // 11) PUSH THROUGH tint
+    // PushThrough tint
     if (_pushThroughBlockedCol >= 0)
     {
-        var pushCell = gridManager.cells[tr, _pushThroughBlockedCol];
-        pushCell.GetComponent<Cell>().Highlight(true);
-        var sr = pushCell.GetComponent<SpriteRenderer>();
+        var pc = gridManager.cells[tr, _pushThroughBlockedCol];
+        pc.GetComponent<Cell>().Highlight(true);
+        var sr = pc.GetComponent<SpriteRenderer>();
         if (sr != null)
-        {
-            sr.color = (phase == Phase.PlayerAttack)
-                ? new Color(1f, 1f, 0f, 0.5f)
-                : new Color(1f, 0f, 0f, 0.5f);
-        }
-        pushCell.GetComponent<Collider2D>().enabled = (phase == Phase.PlayerAttack);
+            sr.color = phase == Phase.PlayerAttack
+                       ? new Color(1f, 1f, 0f, 0.5f)
+                       : new Color(1f, 0f, 0f, 0.5f);
+        pc.GetComponent<Collider2D>().enabled = (phase == Phase.PlayerAttack);
     }
 
-    // 12) Quit-or-Double tint
-    if (enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble))
-    {
-        int qo = matchModifierManager.GetQuitOrDoubleColumn();
-        if (qo != _pushThroughBlockedCol && _allowedColumns.Contains(qo))
-        {
-            var qoCell = gridManager.cells[tr, qo];
-            qoCell.GetComponent<Cell>().Highlight(true);
-            var sr = qoCell.GetComponent<SpriteRenderer>();
-            if (sr != null)
-                sr.color = new Color(1f, 0f, 1f, 0.5f);
-        }
-    }
 
-    // 13) Momentum Limit tint
-    if (enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.MomentumLimit)
-        && !matchModifierManager.CanAdvance())
-    {
-        foreach (int c in _allowedColumns)
-        {
-            var cell = gridManager.cells[tr, c].GetComponent<SpriteRenderer>();
-            if (cell != null)
-                cell.color = new Color(1f, 0f, 0f, 0.5f);
-        }
-    }
 
     // 14) Dynamic Corridor tint
     if (enableModifiers
