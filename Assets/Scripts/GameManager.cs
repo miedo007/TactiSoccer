@@ -1213,7 +1213,7 @@ private void HighlightRow(int tr, Actor attacker)
         && movement.Count > 0)
     {
         _lockedColThisTurn = movement[Random.Range(0, movement.Count)];
-        ShowModifier($"Column {_lockedColThisTurn + 1} locked!", 2f);
+        ShowModifier("Cell locked!", 2f);
     }
     if (_lockedColThisTurn >= 0)
         movement.Remove(_lockedColThisTurn);
