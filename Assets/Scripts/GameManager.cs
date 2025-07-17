@@ -1175,16 +1175,17 @@ if (qodActive)
 
     // ─── NORMAL MODIFIER LOGIC ───
 
-    // Locked Column (defender-only)
+    // Locked Column (always block that column for everyone)
     if (enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn)
+       && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn)
         && _lockedColThisTurn < 0
         && movement.Count > 0)
     {
         _lockedColThisTurn = movement[Random.Range(0, movement.Count)];
         ShowModifier($"Column {_lockedColThisTurn + 1} locked!", 2f);
     }
-    if (phase == Phase.AwaitingDefense && _lockedColThisTurn >= 0)
+    // remove the locked column for both attack AND defense
+    if (_lockedColThisTurn >= 0)
         movement.Remove(_lockedColThisTurn);
 
     // Burned Column
@@ -1237,15 +1238,15 @@ if (qodActive)
         gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
     }
 
-    // Locked Column styling
+    // Locked Column styling: red‐tint and always disable collider
     if (_lockedColThisTurn >= 0)
     {
         var lc = gridManager.cells[tr, _lockedColThisTurn];
         lc.GetComponent<Cell>().Highlight(true);
         var sr = lc.GetComponent<SpriteRenderer>();
         if (sr != null) sr.color = new Color(1f, 0f, 0f, 0.5f);
-        if (phase == Phase.AwaitingDefense)
-            lc.GetComponent<Collider2D>().enabled = false;
+        // prevent clicking on the locked column at all times
+        lc.GetComponent<Collider2D>().enabled = false;
     }
 
     // PushThrough tint
