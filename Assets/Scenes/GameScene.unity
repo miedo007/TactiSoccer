@@ -751,7 +751,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0.000061035156}
-  m_SizeDelta: {x: 100, y: 100}
+  m_SizeDelta: {x: 100, y: 104.94}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &118774158
 MonoBehaviour:
@@ -2460,7 +2460,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0.000061035156}
-  m_SizeDelta: {x: 100, y: 100}
+  m_SizeDelta: {x: 100, y: 104.94}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &361194230
 MonoBehaviour:
@@ -2545,17 +2545,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   allModifiers:
-  - {fileID: 11400000, guid: ac8e34a4173ed90428d6b46a23dfb8ce, type: 2}
   - {fileID: 11400000, guid: 372cf088c1a11374f80de2be57b1c43e, type: 2}
-  - {fileID: 11400000, guid: 45dd891b4231d144b983eea1e0787e5b, type: 2}
   - {fileID: 11400000, guid: ac0468ad7f700774690a0b5a922aeada, type: 2}
-  - {fileID: 11400000, guid: f93c4ec5ab7002a4fa4b0f03bcd3d913, type: 2}
-  - {fileID: 11400000, guid: 03dbe3698bebbb2428dfc69c31406645, type: 2}
-  - {fileID: 11400000, guid: da8856f6a2669d0458388b6395e1a7f6, type: 2}
-  - {fileID: 11400000, guid: 0c384f1765087fd47bd057fb13f445d4, type: 2}
-  - {fileID: 11400000, guid: 45210eb4a1d63e54d9bed2ece4816b4b, type: 2}
-  - {fileID: 11400000, guid: c56f76b35d03b7948b349a5b35197bff, type: 2}
-  - {fileID: 11400000, guid: 8a87c6132910e7f40aa207b246f9af78, type: 2}
   uniqueDraft: 1
 --- !u!1 &476552956
 GameObject:
@@ -7715,7 +7706,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: RULES
+  m_text: MODIFIERS
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

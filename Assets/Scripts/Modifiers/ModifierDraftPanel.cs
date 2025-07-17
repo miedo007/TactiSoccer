@@ -10,6 +10,7 @@ public class ModifierDraftPanel : MonoBehaviour
     [SerializeField] private GameObject choiceItemPrefab;
     [SerializeField] private RectTransform choicesParent;  // must have a VerticalLayoutGroup + ContentSizeFitter
     [SerializeField] private Button toggleButton;          // “Show/Hide choices”
+    [SerializeField] private TMP_Text titleText;           // the “Choose a modifier” title
 
     private RectTransform _panelRect;
     private Action<MatchModifierDefinition> _onPick;
@@ -33,10 +34,12 @@ public class ModifierDraftPanel : MonoBehaviour
         if (toggleButton.targetGraphic != null)
             toggleButton.targetGraphic.raycastTarget = true;
 
-        // Start with choices hidden (button itself hidden until Show is called)
+        // Start hidden
+        gameObject.SetActive(false);
         choicesParent.gameObject.SetActive(false);
         toggleButton.gameObject.SetActive(false);
-        gameObject.SetActive(false);
+        if (titleText != null)
+            titleText.gameObject.SetActive(false);
 
         // Ensure the layout group centers its children
         if (choicesParent.TryGetComponent<VerticalLayoutGroup>(out var vlg))
@@ -53,6 +56,13 @@ public class ModifierDraftPanel : MonoBehaviour
     {
         _onPick = onPick;
         ClearChoices();
+
+        // show title
+        if (titleText != null)
+        {
+            titleText.text = "Choose a modifier";
+            titleText.gameObject.SetActive(true);
+        }
 
         // Build one choice entry per modifier
         foreach (var mod in options)
@@ -76,6 +86,10 @@ public class ModifierDraftPanel : MonoBehaviour
                 btn.onClick.RemoveAllListeners();
                 btn.onClick.AddListener(() =>
                 {
+                    // hide title once a choice is made
+                    if (titleText != null)
+                        titleText.gameObject.SetActive(false);
+
                     _onPick?.Invoke(mod);
                     Hide();    // hide choices (toggle remains)
                 });
@@ -122,6 +136,10 @@ public class ModifierDraftPanel : MonoBehaviour
         toggleButton.GetComponentInChildren<TMP_Text>()?
             .SetText("Show choices");
         toggleButton.transform.SetAsLastSibling();
+
+        // also hide the title for next time
+        if (titleText != null)
+            titleText.gameObject.SetActive(false);
     }
 
     private void ClearChoices()
@@ -135,6 +153,9 @@ public class ModifierDraftPanel : MonoBehaviour
     {
         foreach (var btn in choicesParent.GetComponentsInChildren<Button>())
             btn.interactable = false;
+
+        if (titleText != null)
+            titleText.gameObject.SetActive(false);
     }
 
     public void Reveal(MatchModifierDefinition p, MatchModifierDefinition a)
@@ -142,11 +163,11 @@ public class ModifierDraftPanel : MonoBehaviour
         // optional highlight logic
     }
 
+    /// <summary>
     /// Show or hide the “Hide/Show choices” toggle button itself.
     /// </summary>
     public void SetToggleChoicesVisible(bool visible)
     {
         toggleButton.gameObject.SetActive(visible);
     }
-    
 }
