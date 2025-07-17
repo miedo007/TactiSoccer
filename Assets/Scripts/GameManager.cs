@@ -56,6 +56,10 @@ private int draftSize = 3;
     public TextMeshProUGUI messageText;
     public TextMeshProUGUI goalText;
 
+    [Header("Turn Prompt")]
+    [Tooltip("Instruction shown at the start of each turn")]
+    [SerializeField] private TextMeshProUGUI instructionText;
+
     [Header("Modifier UI")]
     [Tooltip("Separate text field to display modifier alerts")]
     public TextMeshProUGUI modifierText;
@@ -217,6 +221,10 @@ private int draftSize = 3;
     if (rulesPanel != null)
         rulesPanel.SetActive(false);
         rulesButton.gameObject.SetActive(false);
+
+        // 2) Hide the “Pick a cell to move to” prompt until later
+    if (instructionText != null)
+        instructionText.gameObject.SetActive(false);
         
         // 2) wire up the toggle button so the player can always open it later
     rulesButton.onClick.RemoveAllListeners();
@@ -253,8 +261,6 @@ private int draftSize = 3;
     InitializeMatch();
 }
 
-
-
     /// <summary>
     /// Sets up a fresh match without any betting UI.
     /// </summary>
@@ -263,6 +269,9 @@ private int draftSize = 3;
 /// </summary>
 private void InitializeMatch()
 {
+    // 0) hide the “pick a cell” prompt
+    instructionText?.gameObject.SetActive(false);
+
     // hide any leftover UIs
     resultPopup?.SetActive(false);
     penaltyPanel?.SetActive(false);
@@ -400,6 +409,7 @@ private IEnumerator HideRulesPanelDelayed(float delay)
 {
     yield return new WaitForSeconds(delay);
     rulesPanel.SetActive(false);
+
 }
 
 private IEnumerator ContinueAfterDraft()
@@ -410,6 +420,18 @@ private IEnumerator ContinueAfterDraft()
 
     // 1) Unlock input
     _inputLocked = false;
+
+
+    // 2) Show the correct prompt
+    if (instructionText != null)
+    {
+        if (possession == Actor.Player)
+            instructionText.text = "Pick a cell to move to";
+        else
+            instructionText.text = "Pick a cell to defend";
+
+        instructionText.gameObject.SetActive(true);
+    }
 
     // 2) Recompute the row we’ll be moving into
     int targetRow = (possession == Actor.Player)
@@ -484,6 +506,11 @@ private IEnumerator ContinueAfterDraft()
 
    public void OnCellClicked(int r, int c)
 {
+    
+    // hide prompt immediately
+        if (instructionText != null)
+            instructionText.gameObject.SetActive(false);
+
     // ignore taps if we’re mid‐resolution or showing the bet UI
     if (_inputLocked || penaltyPanel.activeSelf)
         return;
@@ -888,6 +915,7 @@ if (matchModifierManager.IsEdgeBurstReady())
 
     private void ShowModifier(string msg, float duration)
     {
+
         if (_clearModifierCoroutine != null) StopCoroutine(_clearModifierCoroutine);
         modifierText.text = msg;
         _clearModifierCoroutine = StartCoroutine(ClearModifierAfter(duration));
