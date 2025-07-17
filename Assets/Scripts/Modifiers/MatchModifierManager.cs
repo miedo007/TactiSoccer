@@ -583,6 +583,7 @@ if (aiPick == MatchModifierDefinition.ModifierType.Stall)
 /// </summary>
 public void ClearTurnModifiers() {
     _turnModifiers.Clear();
+    _fastLaneColumn = -1;
 
     // one-shot flags:
     _slipstreamReady          = false;
