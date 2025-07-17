@@ -1223,6 +1223,14 @@ private void HighlightRow(int tr, Actor attacker)
     if (phase == Phase.AwaitingDefense && _pushThroughBlockedCol >= 0)
         movement.Remove(_pushThroughBlockedCol);
 
+    
+    // ── NEW: if nothing’s left, bail out & auto‐resolve ──
+if (movement.Count == 0)
+{
+    HandleEmptyMoves(tr, attacker);
+    return;
+}
+
     // 5) Highlight all surviving cells ONCE
     foreach (int c in movement)
     {
@@ -1301,6 +1309,23 @@ private List<int> GetAdjacentColumns()
     return adj;
 }
 
+private void HandleEmptyMoves(int targetRow, Actor attacker)
+{
+    // attacker‐phase but no moves left → defender “wins” the clash
+    if (phase == Phase.PlayerAttack)
+    {
+        attackChoice = ballCol;               // fallback
+        defendChoice = AI_DefenseGuess();     // pick a defense so ResolveTurn can run
+    }
+    else // Phase.AwaitingDefense
+    {
+        defendChoice = ballCol;               // fallback
+        attackChoice = AIAttackGuess();       // pick an attack
+    }
+
+    // now jump straight into resolution
+    StartCoroutine(ResolveTurn(targetRow));
+}
 
 // ───────────────────────────────────────────────────────────────────────
 // PURE HELPER: get legal columns for a given row & attacker, with no UI side-effects
