@@ -2546,8 +2546,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   allModifiers:
+  - {fileID: 11400000, guid: 45dd891b4231d144b983eea1e0787e5b, type: 2}
+  - {fileID: 11400000, guid: ac8e34a4173ed90428d6b46a23dfb8ce, type: 2}
+  - {fileID: 11400000, guid: 03dbe3698bebbb2428dfc69c31406645, type: 2}
+  - {fileID: 11400000, guid: 0c384f1765087fd47bd057fb13f445d4, type: 2}
+  - {fileID: 11400000, guid: 45210eb4a1d63e54d9bed2ece4816b4b, type: 2}
   - {fileID: 11400000, guid: 372cf088c1a11374f80de2be57b1c43e, type: 2}
+  - {fileID: 11400000, guid: c56f76b35d03b7948b349a5b35197bff, type: 2}
   - {fileID: 11400000, guid: ac0468ad7f700774690a0b5a922aeada, type: 2}
+  - {fileID: 11400000, guid: f93c4ec5ab7002a4fa4b0f03bcd3d913, type: 2}
+  - {fileID: 11400000, guid: da8856f6a2669d0458388b6395e1a7f6, type: 2}
   uniqueDraft: 1
 --- !u!1 &476552956
 GameObject:
