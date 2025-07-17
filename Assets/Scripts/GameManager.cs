@@ -1431,6 +1431,21 @@ private float ScoreDefenseColumn(int col)
     int cols   = gridManager.cols;
     int center = cols / 2;
 
+    // ── NEW: defend against a possible EdgeBurst ──
+    if (enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.EdgeBurst))
+    {
+        // figure out attacker’s next‐row legal moves
+        int dir     = (possession == Actor.Player) ? +1 : -1;
+        int nextRow = ballRow + dir;
+        var atkLegal = GetLegalMoves(nextRow, possession);
+
+        // if attacker *could* edge‐burst into 0 or cols-1, heavily defend that edge
+        if (atkLegal.Contains(0) && col == 0)
+            score += 6f;
+        if (atkLegal.Contains(cols - 1) && col == cols - 1)
+            score += 6f;
+    }
     // Base: slight center bias
     score += 1f - (Mathf.Abs(col - center) / (float)center);
 
