@@ -521,7 +521,15 @@ private IEnumerator ContinueAfterDraft()
 
     // lock out any further clicks until this turn fully resolves
     _inputLocked = true;
-
+// ── NEW: if player is attacking and clicked the PushThrough column, show the message ──
+    if (possession == Actor.Player
+        && phase == Phase.PlayerAttack
+        && enableModifiers
+        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.PushThrough)
+        && c == _pushThroughBlockedCol)
+    {
+        ShowModifier($"PushThrough", 2f);
+    }
     if (possession == Actor.Player && phase == Phase.PlayerAttack)
     {
         attackChoice = c;
@@ -1245,8 +1253,7 @@ private void HighlightRow(int tr, Actor attacker)
         && movement.Count > 0)
     {
         _pushThroughBlockedCol = movement[Random.Range(0, movement.Count)];
-        if (phase == Phase.PlayerAttack)
-            ShowModifier($"PushThrough → blocking col {_pushThroughBlockedCol + 1}", 2f);
+
     }
     if (phase == Phase.AwaitingDefense && _pushThroughBlockedCol >= 0)
         movement.Remove(_pushThroughBlockedCol);
