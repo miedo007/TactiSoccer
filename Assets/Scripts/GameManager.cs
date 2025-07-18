@@ -84,10 +84,6 @@ private int draftSize = 3;
     public MMFeedbacks feedbackMatchWin;
     public MMFeedbacks feedbackMatchLose;
 
-    [Header("Power-Up (assign in Inspector)")]
-    public PowerUpManager powerUpManager;
-    public PowerUpSpawner powerUpSpawner;
-
     [Header("Match Modifiers (assign in Inspector)")]
     public MatchModifierManager matchModifierManager;
     public Transform modifierIconsContainer;
@@ -108,8 +104,6 @@ private int draftSize = 3;
     public bool restrictToAdjacent = true;
 
     [Header("Feature Toggles")]
-    [Tooltip("Turn off to disable all power-up spawning and effects.")]
-    public bool enablePowerUps = true;
     [Tooltip("Turn off to disable all match modifiers and their effects.")]
     public bool enableModifiers = true;
 
@@ -151,6 +145,9 @@ private int draftSize = 3;
     private int _pushThroughBlockedCol = -1;
     private int _lockedColThisTurn = -1;
     private HashSet<int> _tintedColumns = new HashSet<int>();
+
+    private GameObject _playerMarkerInstance;
+    private GameObject _aiMarkerInstance;
    
 
     public enum Actor { Player, AI }
@@ -174,6 +171,10 @@ private int draftSize = 3;
     private Coroutine _clearModifierCoroutine;
     private List<int> _allowedColumns = new List<int>();
     private List<GameObject> _revealMarkers = new List<GameObject>();
+
+    private WaitForSeconds _draftDelayWait;
+    private WaitForSeconds _revealStaggerWait;
+    private readonly List<int> _movementBuffer = new List<int>(16);
 
     // your UI panel that shows 3 modifier buttons/icons
     [SerializeField] private ModifierDraftPanel modifierDraftPanel;
@@ -202,12 +203,6 @@ private int draftSize = 3;
     // … the rest of your GameManager follows unchanged …
 
 
-    private void ClearFieldPowerUps()
-    {
-        var pickups = Object.FindObjectsByType<PowerUpPickup>(FindObjectsSortMode.None);
-        foreach (var pu in pickups)
-            Destroy(pu.gameObject);
-    }
 
    /// <summary>
     /// Adjusts the running leaderboard score by +10 (win) or –5 (lose), clamps ≥0,
@@ -215,49 +210,65 @@ private int draftSize = 3;
     /// </summary>
 
    
-   void Start()
+   private void Start()
 {
-    // If you still have the old rulesPanel in your scene, hide it so it never blocks clicks.
+    // 1) Cap the frame rate for consistent timing & lower CPU load
+    Application.targetFrameRate = 60;
+    QualitySettings.vSyncCount  = 1;
+
+    // 2) Hide the old rulesPanel (if any) so it never blocks clicks
     if (rulesPanel != null)
+    {
         rulesPanel.SetActive(false);
         rulesButton.gameObject.SetActive(false);
+    }
 
-        // 2) Hide the “Pick a cell to move to” prompt until later
+    // 3) Hide the “Pick a cell to move to” prompt until later
     if (instructionText != null)
+    {
         instructionText.gameObject.SetActive(false);
-        
-        // 2) wire up the toggle button so the player can always open it later
+    }
+
+    // 4) Wire up the toggle button so the player can always open the rules
     rulesButton.onClick.RemoveAllListeners();
     rulesButton.onClick.AddListener(() =>
     {
-
-            rulesPanel.SetActive(!rulesPanel.activeSelf);
+        rulesPanel.SetActive(!rulesPanel.activeSelf);
     });
+    rulesButton.transform.SetAsLastSibling(); // always keep it on top
 
-      // **this is the trick**: always keep it on top
-    rulesButton.transform.SetAsLastSibling();
+    // 5) Cache penalty visuals
+    penaltyBallStartPos = penaltyBall.anchoredPosition;
+    goalkeeperBaseScale = goalkeeperImage.rectTransform.localScale;
 
-    // Cache penalty visuals
-    penaltyBallStartPos   = penaltyBall.anchoredPosition;
-    goalkeeperBaseScale   = goalkeeperImage.rectTransform.localScale;
-
-    // Initialize each Cell with its row/col and a reference back to this GM
+    // 6) Initialize each Cell with its row/col and a reference back to this GM
     for (int r = 0; r < gridManager.rows; r++)
     {
         for (int c = 0; c < gridManager.cols; c++)
         {
-            gridManager
-                .cells[r, c]
-                .GetComponent<Cell>()
-                .Initialize(r, c, this);
+            gridManager.cells[r, c]
+                       .GetComponent<Cell>()
+                       .Initialize(r, c, this);
         }
     }
 
-    // Clear any on-screen text
+    // 7) Clear any on-screen text
     messageText.text  = "";
     modifierText.text = "";
 
-    // Kick off the very first match turn
+    // 8) Cache the draft delay so we don’t alloc each turn
+    _draftDelayWait = new WaitForSeconds(draftDelay);
+    _revealStaggerWait = new WaitForSeconds(revealStaggerDelay);
+
+    // 9) Pre-instantiate one of each reveal marker and disable them
+    _playerMarkerInstance = Instantiate(revealMarkerPlayerPrefab);
+    _playerMarkerInstance.SetActive(false);
+    _aiMarkerInstance     = Instantiate(revealMarkerAIPrefab);
+    _aiMarkerInstance.SetActive(false);
+
+   
+
+    // 10) Kick off the very first match turn
     InitializeMatch();
 }
 
@@ -291,12 +302,9 @@ private void InitializeMatch()
     // push your inspector toggle into the manager
     matchModifierManager.UniqueDraft = uniqueDraft;
 
-    // power-ups & modifiers if enabled
-    ClearFieldPowerUps();
+     // modifiers only
     if (enableModifiers)
         matchModifierManager.PickRandomModifiers();
-    if (enablePowerUps)
-        powerUpSpawner.SpawnDrops();
 
     // start the very first turn
     StartNewTurn();
@@ -331,7 +339,7 @@ private void InitializeMatch()
     private IEnumerator BeginModifierDraftWithDelay()
     {
         // 1) wait so the last move animation can finish
-        yield return new WaitForSeconds(draftDelay);
+        yield return _draftDelayWait;
         // 2) then open the draft
         BeginModifierDraft();
     }
@@ -582,15 +590,18 @@ float dropDuration = 0.3f;
 float fadeDuration = 0.2f;
 
 // PLAYER marker
-if (revealMarkerPlayerPrefab != null)
+if (_playerMarkerInstance != null)
 {
+    // compute the drop start position
     Vector3 cellPos = gridManager.GetCellPosition(targetRow, playerPick);
-    // start ABOVE the cell
-    var pm = Instantiate(
-        revealMarkerPlayerPrefab,
-        cellPos + Vector3.up * dropHeight,
-        Quaternion.identity
-    );
+
+    // reuse the pooled marker
+    var pm = _playerMarkerInstance;
+    pm.transform.position = cellPos + Vector3.up * dropHeight;
+    pm.transform.rotation = Quaternion.identity;
+    pm.SetActive(true);
+
+    // keep track so we can hide it later
     _revealMarkers.Add(pm);
 
     // make it invisible at first
@@ -607,30 +618,38 @@ if (revealMarkerPlayerPrefab != null)
       .SetEase(Ease.OutBounce);
 }
 
-yield return new WaitForSeconds(revealStaggerDelay);
+yield return _revealStaggerWait;
 
-// AI marker
-if (revealMarkerAIPrefab != null)
+/// AI marker
+if (_aiMarkerInstance != null)
 {
+    // compute the drop start position
     Vector3 cellPos = gridManager.GetCellPosition(targetRow, aiPick);
-    var am = Instantiate(
-        revealMarkerAIPrefab,
-        cellPos + Vector3.up * dropHeight,
-        Quaternion.identity
-    );
+
+    // reuse the pooled marker
+    var am = _aiMarkerInstance;
+    am.transform.position = cellPos + Vector3.up * dropHeight;
+    am.transform.rotation = Quaternion.identity;
+    am.SetActive(true);
+
+    // keep track so we can hide it later
     _revealMarkers.Add(am);
 
+    // make it invisible at first
     var sr = am.GetComponent<SpriteRenderer>();
     if (sr != null) sr.color = new Color(sr.color.r, sr.color.g, sr.color.b, 0f);
+
+    // fade in
     if (sr != null)
         sr.DOFade(1f, fadeDuration);
 
+    // drop straight down onto the cell, with a little bounce at the end
     am.transform
       .DOMove(cellPos, dropDuration)
       .SetEase(Ease.OutBounce);
 }
 
-yield return new WaitForSeconds(revealStaggerDelay);
+yield return _revealStaggerWait;
 ClearRevealMarkers();
 
     // 2) Mirror Clash
@@ -872,8 +891,6 @@ if (matchModifierManager.IsEdgeBurstReady())
 
     yield return ballCtrl.MoveToCell(gridManager.GetCellPosition(ballRow, ballCol));
 }
-    if (enablePowerUps)
-        CheckForPickups();
 
     // 10) Check for goal (now triggers even if it was a tackle)
     bool goal = (attacker == Actor.Player && ballRow == gridManager.rows - 1)
@@ -953,17 +970,11 @@ private IEnumerator ClearGoalAfter(float t)
 
     private void ClearRevealMarkers()
     {
-        foreach (var m in _revealMarkers) Destroy(m);
-        _revealMarkers.Clear();
+        foreach (var m in _revealMarkers)
+    m.SetActive(false);
+    _revealMarkers.Clear();
     }
 
-    private void CheckForPickups()
-    {
-        var hits = Physics2D.OverlapCircleAll(ballInstance.transform.position, 0.1f);
-        foreach (var hit in hits)
-            if (hit.TryGetComponent<PowerUpPickup>(out var pu))
-                pu.ManualPickup(ballInstance);
-    }
 
     private IEnumerator ThrowOffScreen(GameObject loser, Actor attacker)
     {
@@ -1145,7 +1156,7 @@ private IEnumerator PenaltySequence(Actor attacker)
         else                                  penaltyDefendChoice = idx;
     }
 /// <summary>
-    /// Highlights & tints one cell, but only if it hasn’t already been tinted this pass.
+    /// Highlights  tints one cell, but only if it hasn’t already been tinted this pass.
     /// </summary>
     private void TintCell(int row, int col, Color tint, bool disableCollider = false)
     {
@@ -1167,25 +1178,33 @@ private void HighlightRow(int tr, Actor attacker)
     _tintedColumns.Clear();
     if (tr < 0 || tr >= gridManager.rows) return;
 
-    // 2) Build base movement list (adjacent vs full)
-    List<int> movement = restrictToAdjacent
-        ? GetAdjacentColumns()
-        : Enumerable.Range(0, gridManager.cols).ToList();
+    // 2) Build base movement list into our reusable buffer
+    _movementBuffer.Clear();
+    if (restrictToAdjacent)
+    {
+        _movementBuffer.Add(ballCol);
+        if (ballCol - 1 >= 0) _movementBuffer.Add(ballCol - 1);
+        if (ballCol + 1 < gridManager.cols) _movementBuffer.Add(ballCol + 1);
+    }
+    else
+    {
+        for (int c = 0; c < gridManager.cols; c++)
+            _movementBuffer.Add(c);
+    }
 
-    // Forced Diagonal: strip out the straight-ahead column
+    // Forced Diagonal: strip out the straight‐ahead column
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.ForcedDiagonal))
     {
-        movement = movement.Where(c => c != ballCol).ToList();
+        _movementBuffer.RemoveAll(c => c == ballCol);
     }
 
-    // 3) QUIT-OR-DOUBLE override: white highlight all, magenta tint the QoD column
+    // 3) QUIT-OR-DOUBLE override
     bool qodActive = enableModifiers
                      && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.QuitOrDouble);
     if (qodActive)
     {
-        // a) white-highlight every legal move
-        foreach (int c in movement)
+        foreach (int c in _movementBuffer)
         {
             _allowedColumns.Add(c);
             var go = gridManager.cells[tr, c];
@@ -1193,37 +1212,32 @@ private void HighlightRow(int tr, Actor attacker)
             var sr = go.GetComponent<SpriteRenderer>();
             if (sr != null) sr.color = Color.white;
         }
-
-        // b) magenta-tint exactly the QoD column
         int qodCol = matchModifierManager.GetQuitOrDoubleColumn();
         if (_allowedColumns.Contains(qodCol) && _tintedColumns.Add(qodCol))
-        {
             TintCell(tr, qodCol, new Color(1f, 0f, 1f, 0.5f));
-        }
-
-        // c) skip all other modifiers
         return;
     }
 
     // 4) NORMAL MODIFIER PRUNING
-    // Locked Column → choose & remove
+
+    // Locked Column
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.LockedColumn)
         && _lockedColThisTurn < 0
-        && movement.Count > 0)
+        && _movementBuffer.Count > 0)
     {
-        _lockedColThisTurn = movement[Random.Range(0, movement.Count)];
+        _lockedColThisTurn = _movementBuffer[Random.Range(0, _movementBuffer.Count)];
         ShowModifier("Cell locked!", 2f);
     }
     if (_lockedColThisTurn >= 0)
-        movement.Remove(_lockedColThisTurn);
+        _movementBuffer.Remove(_lockedColThisTurn);
 
     // Burned Column
-    if (enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
-    {
-        movement.Remove(matchModifierManager.GetLastUsedColumn(attacker));
-    }
+   // if (enableModifiers
+     //   && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
+   // {
+   //     _movementBuffer.Remove(matchModifierManager.GetLastUsedColumn(mover));
+  //  }
 
     // Blockade (defender-only)
     if (enableModifiers && phase == Phase.AwaitingDefense)
@@ -1231,7 +1245,9 @@ private void HighlightRow(int tr, Actor attacker)
         var defender = (attacker == Actor.Player) ? Actor.AI : Actor.Player;
         if (matchModifierManager.IsBlockadeReady(defender))
         {
-            movement = movement.OrderBy(_ => Random.value).Take(2).ToList();
+            var pruned = _movementBuffer.OrderBy(_ => Random.value).Take(2).ToList();
+            _movementBuffer.Clear();
+            _movementBuffer.AddRange(pruned);
             matchModifierManager.ConsumeBlockade(defender);
             ShowModifier("Blockade!\nDefender limited to 2 columns", 3f);
         }
@@ -1241,52 +1257,48 @@ private void HighlightRow(int tr, Actor attacker)
     if (enableModifiers && phase == Phase.PlayerAttack
         && matchModifierManager.IsSabotageReady(attacker))
     {
-        movement = movement.OrderBy(_ => Random.value).Take(2).ToList();
+        var pruned = _movementBuffer.OrderBy(_ => Random.value).Take(2).ToList();
+        _movementBuffer.Clear();
+        _movementBuffer.AddRange(pruned);
         matchModifierManager.ConsumeSabotage(attacker);
         ShowModifier("Sabotage!\nAttacker limited to 2 columns", 3f);
     }
 
-    // PushThrough → choose & (defender-only) remove
+    // PushThrough
     if (enableModifiers
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.PushThrough)
         && _pushThroughBlockedCol < 0
-        && movement.Count > 0)
+        && _movementBuffer.Count > 0)
     {
-        _pushThroughBlockedCol = movement[Random.Range(0, movement.Count)];
-
+        _pushThroughBlockedCol = _movementBuffer[Random.Range(0, _movementBuffer.Count)];
     }
     if (phase == Phase.AwaitingDefense && _pushThroughBlockedCol >= 0)
-        movement.Remove(_pushThroughBlockedCol);
+       _movementBuffer.Remove(_pushThroughBlockedCol);
 
-    
-    // ── NEW: if nothing’s left, bail out & auto‐resolve ──
-if (movement.Count == 0)
-{
-    HandleEmptyMoves(tr, attacker);
-    return;
-}
+    // Nothing left → auto-resolve
+    if (_movementBuffer.Count == 0)
+    {
+        HandleEmptyMoves(tr, attacker);
+        return;
+    }
 
-    // 5) Highlight all surviving cells ONCE
-    foreach (int c in movement)
+    // 5) Highlight all surviving cells
+    foreach (int c in _movementBuffer)
     {
         _allowedColumns.Add(c);
         gridManager.cells[tr, c].GetComponent<Cell>().Highlight(true);
     }
 
-    // 6) Apply each modifier’s tint *in order*, guarded by _tintedColumns
-
-    // — Locked Column: red + disable collider
+    // 6) Apply tints (Locked, PushThrough, etc.) exactly as before
     if (_lockedColThisTurn >= 0)
         TintCell(tr, _lockedColThisTurn, new Color(1f, 0f, 0f, 0.5f), disableCollider: true);
 
-    // — PushThrough: yellow for player-attack, red for AI-attack
     if (_pushThroughBlockedCol >= 0)
     {
         var color = (phase == Phase.PlayerAttack)
             ? new Color(1f, 1f, 0f, 0.5f)
             : new Color(1f, 0f, 0f, 0.5f);
-
-            bool disable = (phase == Phase.AwaitingDefense);
+        bool disable = (phase == Phase.AwaitingDefense);
         TintCell(tr, _pushThroughBlockedCol, color, disableCollider: disable);
     }
 
@@ -1381,16 +1393,15 @@ private List<int> GetLegalMoves(int tr, Actor mover)
     && _lockedColThisTurn >= 0)
     
 {
-    movement.Remove(_lockedColThisTurn);
+    _movementBuffer.Remove(_lockedColThisTurn);
 }
 
     // Burned Column
-    if (enableModifiers
-        && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
-    {
-        var burned = matchModifierManager.GetLastUsedColumn(mover);
-        movement.Remove(burned);
-    }
+   // if (enableModifiers
+   //     && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.BurnedColumn))
+   // {
+   //     _movementBuffer.Remove(matchModifierManager.GetLastUsedColumn(attacker));
+   // }
 
     // Blockade (defender-only)
     if (enableModifiers
@@ -1408,7 +1419,7 @@ private List<int> GetLegalMoves(int tr, Actor mover)
         && matchModifierManager.HasModifier(MatchModifierDefinition.ModifierType.PushThrough)
         && _pushThroughBlockedCol >= 0)
     {
-        movement.Remove(_pushThroughBlockedCol);
+       movement.Remove(_pushThroughBlockedCol);
     }
 
     // ForcedDiagonal (applies to both)
