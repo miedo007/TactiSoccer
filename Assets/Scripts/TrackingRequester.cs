@@ -1,16 +1,19 @@
 using UnityEngine;
 #if UNITY_IOS
-using UnityEngine.iOS;
+using Unity.Advertisement.IosSupport; // from com.unity.ads.ios-support
 #endif
 
 public class TrackingRequester : MonoBehaviour
 {
-    void Start()
+    void Awake()
     {
 #if UNITY_IOS
-        Device.RequestAdvertisingIdentifierAsync((string idfa, bool trackingAllowed, string error) => {
-            Debug.Log($"IDFA: {idfa}, trackingAllowed: {trackingAllowed}");
-        });
+        // only request if the status is still “Not Determined”
+        if (ATTrackingStatusBinding.GetAuthorizationTrackingStatus()
+            == ATTrackingStatusBinding.AuthorizationTrackingStatus.NOT_DETERMINED)
+        {
+            ATTrackingStatusBinding.RequestAuthorizationTracking();
+        }
 #endif
     }
 }
